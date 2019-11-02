@@ -15,7 +15,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
+#include <limits.h>
 
 /* ==========================================================================
           __             __                     __   _
@@ -45,6 +47,16 @@
 #define retp(S) do { \
 		perror(S); \
 		return -1; \
+	} while (0)
+
+#define goto(S, L) do { \
+		fprintf(stderr, S "\n"); \
+		goto L; \
+	} while (0)
+
+#define gotop(S, L) do { \
+		perror(S); \
+		goto L; \
 	} while (0)
 
 #define STRINGIFY(X) #X
@@ -111,6 +123,32 @@ static void print_usage(void)
 "\n"
 "  sini set config.ini server.ip 10.1.1.3\n"
 "  sini set config.ini \"section space.and name\" \"value with spaces\"\n");
+}
+
+/* ==========================================================================
+    Generates random alphanumeric data into 's'. 'l' number of bytes will
+    be generated, including last '\0' terminator. So when l is 7, 6 random
+    bytes will be stored into 's' and one '\0' at the end.
+   ========================================================================== */
+
+
+void random_string
+(
+	char              *s,  /* generated data will be stored here */
+	size_t             l   /* length of the data to generate (with '\0') */
+)
+{
+	static const char  alphanum[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+	size_t             i;
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+	if (l == 0)
+		return;
+
+	for (i = 0; i != l; ++i)
+		s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+
+	s[i - 1] = '\0';
 }
 
 
@@ -186,6 +224,7 @@ static int is_section
 )
 {
 	char  *closing;  /* pointer to closing ']' in section */
+	int    ret;      /* return code */
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 
@@ -196,10 +235,102 @@ static int is_section
 		ret("unterminated section found, aborting");
 
 	*closing = '\0';
-	if (strcmp(line, g_section))
-		return 0;
+	ret = strcmp(line, g_section) == 0;
+	*closing = ']';
+	return ret;
+}
 
-	return 1;
+
+/* ==========================================================================
+    Checks if `line' contains requested `g_name' ini field. If value is
+    different than NULL, pointer to field value will be stored there.
+
+    return
+       -2    found '[' which starts new section
+       -1    error parsing ini file
+        0    line does not contain requested line
+        1    yes, that line is the line with requested name
+   ========================================================================== */
+
+
+static int is_name
+(
+	char   *line,  /* line to check for name */
+	char  **value  /* pointer to name value will be stored here */
+)
+{
+	char  *delim;  /* points to '=' delimiter */
+	char   whites; /* saved whitespace character */
+	int    ret;    /* return code */
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+
+	/* check if we hit another section */
+	if (*line == '[')
+		return -2;
+
+	if (*line == '=')
+		ret("empty key detected, aborting");
+
+	if ((delim = strchr(line, '=')) == NULL)
+		ret("missing '=' in key=value, aborting");
+
+	if (value)
+	{
+		*value = delim + 1;
+		while (isspace(**value)) ++*value;
+	}
+
+	while (isspace(delim[-1])) --delim;
+	whites = *delim;
+	*delim = '\0';
+	ret = strcmp(line, g_name) == 0;
+	*delim = whites;
+	return ret;
+}
+
+
+/* ==========================================================================
+    Reads single line from ini file. Full line is stores in location pointed
+    by `line' while linelen defines length of `line' buffer. When 0 is
+    returned, `*l' will be pointing to first non-whitespace character in
+    `line'
+
+    return
+       -2    end of file encountered and no data has been read
+       -1    line too long to fit into `line' buffer
+        0    line read and it is neither comment nor blank line
+        1    line read but is unusable per se, it is comment or blank line
+   ========================================================================== */
+
+
+static int get_line
+(
+	FILE   *f,
+	char   *line,
+	size_t  linelen,
+	char  **l
+)
+{
+	*l = line;
+	line[linelen - 1] = 0x7f;
+
+	if (fgets(line, LINE_MAX, f) == NULL)
+	{
+		if (feof(f))
+			return -2;
+		retp("error reading ini file");
+	}
+
+	if (line[linelen - 1] == '\0' && line[linelen - 2] != '\n')
+		ret("line longer than " LINE_MAX_STR ". Sorry.");
+
+	while (isspace(**l)) ++*l;
+	/* skip comments and blank lines */
+	if (**l == ';' || **l == '\0')
+		return 1;
+
+	return 0;
 }
 
 
@@ -215,75 +346,55 @@ static int do_get
 )
 {
 	char  *l;               /* pointer to line[], for easy manipulation */
-	char  *delim;           /* points to '=' delimiter */
 	char  *value;           /* pointer to ini value for section.name */
 	char   line[LINE_MAX];  /* line from ini file being curently parsed */
-	int    in_section;      /* flag to know if we found requested section */
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 
-	/* if section was not specified, then config names will be on
-	 * top of file and in that case we can say we are already
-	 * in a section
+	/* we support ini without section, so if section was not set,
+	 * go right into name lookup
 	 */
-	in_section = !g_section;
+	if (g_section == NULL)
+		goto got_section;
 
+	/* at first, we need to locate section */
 	for (;;)
 	{
-		value = NULL;
-		line[LINE_MAX - 1] = 0x7f;
-		l = line;
-
-		if (fgets(line, LINE_MAX, f) == NULL)
+		switch (get_line(f, line, sizeof(line), &l))
 		{
-			if (feof(f))
-				return -2;
-			retp("error reading ini file");
+		case -2: return -2;  /* eof */
+		case -1: return -1;  /* error */
+		case  0: break;      /* valid ini line */
+		case  1: continue;   /* empty line or comment */
 		}
 
-		if (line[LINE_MAX - 1] == '\0' && line[LINE_MAX - 2] != '\n')
-			ret("line longer than " LINE_MAX_STR ". Sorry.");
-
-		while (isspace(*l)) ++l;
-		/* skip comments and blank lines */
-		if (*l == ';' || *l == '\0')
-			continue;
-
-		/* at first, we need to locate section */
-		if (in_section == 0)
+		switch (is_section(l))
 		{
-			switch (is_section(l))
-			{
-				case -1: return -1;
-				case  1: in_section = 1;
-				case  0: continue;
-			}
+		case -1: return -1;        /* parse error */
+		case  1: goto got_section; /* our section found */
+		case  0: continue;         /* not it, keep looking */
+		}
+	}
+
+got_section:
+	/* section found. look for name */
+	for (;;)
+	{
+		switch (get_line(f, line, sizeof(line), &l))
+		{
+		case -2: return -2;  /* eof */
+		case -1: return -1;  /* error */
+		case  0: break;      /* valid ini line */
+		case  1: continue;   /* empty line or comment */
 		}
 
-		/* got matching section, now look for name in that section */
-		/* check if we hit another section */
-		if (*l == '[')
-			return -2;
-
-		if (*l == '=')
-			ret("empty key detected, aborting");
-
-		if ((delim = strchr(l, '=')) == NULL)
-			ret("missing '=' in key=value, aborting");
-
-		value = delim + 1;
-		while (isspace(*value)) ++value;
-
-		while (isspace(delim[-1])) --delim;
-		*delim = '\0';
-
-		if (strcmp(l, g_name))
-			continue;
-
-		/* value points to valid c-string with value for the
-		 * section.name, including '\n' as it points to end
-		 * of currently being parsed line.
-		 */
+		switch (is_name(l, &value))
+		{
+		case -2: return -2;  /* another section found, name not found */
+		case -1: return -1;  /* parse error */
+		case  0: continue;   /* not our name */
+		case  1: break;      /* that is our name, print value */
+		}
 
 		fputs(value, stdout);
 		return 0;
@@ -291,13 +402,220 @@ static int do_get
 }
 
 
+/* ==========================================================================
+    returns pointer to where basename of `s' starts without modifying source
+    `s' pointer.
+
+    Examples:
+            path                 basename
+            /path/to/file.c      file.c
+            path/to/file.c       file.c
+            /file.c              file.c
+            file.c               file.c
+            ""                   ""
+            NULL                 segmentation fault
+   ========================================================================== */
+
+
+static const char *basenam
+(
+	const char  *s      /* string to basename */
+)
+{
+	const char  *base;  /* pointer to base name of path */
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+	base = s;
+
+	for (; *s; ++s)
+		if (s[0] == '/' && s[1] != '\0')
+			base = s + 1;
+
+	return base;
+}
+
+
+/* ==========================================================================
+    This function will store random temporary path in `path' in format
+    g_file.XXXXXX, where XXXXXX is random string. So for `g_file'
+    `../etc/options.ini' path named `../etc/options.ini.XXXXXX' will be
+    generated.
+   ========================================================================== */
+
+
+static int gen_tmp_file
+(
+	char   *path,        /* generated path will be put here */
+	size_t  path_size    /* size of `path' buffer */
+)
+{
+	char    tmp_part[8]; /* tmp part of file: XXXXXX */
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+
+	if (strlen(g_file) + sizeof(tmp_part) > path_size)
+		ret("can't create temp file, path to <file> too large");
+
+	if (strlen(basenam(g_file)) + sizeof(tmp_part) > NAME_MAX)
+		ret("can't create temp file, <file> name too large");
+
+	tmp_part[0] = '.';
+	random_string(tmp_part + 1, sizeof(tmp_part) - 1);
+	sprintf(path, "%s%s", g_file, tmp_part);
+
+	return 0;
+}
+
+
+/* ==========================================================================
+    Copies all contents from source `fsrc' file to desctination `fdst'.
+    To save some stack memory, reuse memory from upper calls by accepting
+    `line' pointer. Stream pointers is not modified in both `fsrc' and
+    `fdst', so they can point to arbitrary positions before call.
+
+    returns 0 when
+   ========================================================================== */
+
+
+static int copy_file
+(
+	FILE   *fsrc,    /* source file */
+	FILE   *fdst,    /* destination file */
+	char   *line,    /* buffer to use in fgets() */
+	size_t  linelen  /* length of `line' buffer */
+)
+{
+	size_t  r;       /* bytes read from fread() */
+	size_t  w;       /* bytes written by fwrite() */
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+
+	for (;;)
+	{
+		r = fread(line, 1, linelen, fsrc);
+		w = fwrite(line, 1, r, fdst);
+
+		if (r != linelen)
+		{
+			if (feof(fsrc))
+				return 0;
+			if (ferror(fsrc))
+				retp("copy_file(): fread()");
+		}
+
+		if (w != r)
+			retp("copy_file(): fwrite()");
+	}
+}
+
+
+/* ==========================================================================
+    Changes specified `g_object' with new `g_value' value. If `g_object'
+    does not exist, it will be created.
+   ========================================================================== */
+
+
 static int do_set
 (
 	FILE  *f  /* ini file being parsed */
 )
 {
-	fprintf(stderr, "not yet implemented, sorry:(\n");
-	return -1;
+	FILE  *ftmp;            /* temporary file with new ini content */
+	char  *l;               /* pointer to line[], for easy manipulation */
+	char  *delim;           /* points to '=' delimiter */
+	char  *value;           /* pointer to ini value for section.name */
+	char   line[LINE_MAX];  /* line from ini file being curently parsed */
+	char  tpath[PATH_MAX];  /* path to temporary file */
+	int    ret;
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+
+	ret = 0;
+
+	ftmp = stdout;
+	if (strcmp(g_file, "-"))
+	{
+		if (gen_tmp_file(tpath, sizeof(tpath)) != 0)
+			return -1;
+
+		if ((ftmp = fopen(tpath, "w")) == NULL)
+			retp("do_set(): fopen()");
+	}
+
+	/* we support ini without section, so if section was not set,
+	 * go right into name lookup
+	 */
+	if (g_section == NULL)
+		goto got_section;
+
+	/* at first, we need to locate section */
+	for (;;)
+	{
+		switch ((ret = get_line(f, line, sizeof(line), &l)))
+		{
+		case -2:                    /* eof */
+			ret = 0;
+			fprintf(ftmp, "[%s]\n%s = %s\n",
+					g_section, g_name, g_value);
+		case -1: goto end;          /* error */
+		case  0: break;             /* valid ini line */
+		case  1: fputs(line, ftmp); /* empty line or comment */
+		         continue;
+		}
+
+		switch ((ret = is_section(l)))
+		{
+		case -1: goto end;          /* parse error */
+		case  1: fputs(line, ftmp); /* our section found */
+				 goto got_section;
+		case  0: fputs(line, ftmp); /* not it, keep looking */
+		         continue;
+		}
+	}
+
+got_section:
+	for (;;)
+	{
+		switch ((ret = get_line(f, line, sizeof(line), &l)))
+		{
+		case -2:                    /* eof */
+			ret = 0;
+			fprintf(ftmp, "%s = %s\n", g_name, g_value);
+		case -1: goto end;          /* error */
+		case  0: break;             /* valid ini line */
+		case  1: fputs(line, ftmp); /* empty line or comment */
+		         continue;
+		}
+
+		switch (is_name(l, &value))
+		{
+		case -2:
+			/* another section found, name not found, create it */
+			fprintf(ftmp, "%s = %s\n", g_name, g_value);
+			fputs(line, ftmp);
+			ret = copy_file(f, ftmp, line, sizeof(line));
+			goto end;
+
+		case  1:
+			/* that is our name, print our line, but do not print
+			 * old line (value), it's a replacement after all
+			 */
+			fprintf(ftmp, "%s = %s\n", g_name, g_value);
+			ret = copy_file(f, ftmp, line, sizeof(line));
+			goto end;
+
+		case -1: ret = -1; goto end;  /* parse error */
+		case  0: fputs(line, ftmp);   /* not our name */
+		}
+	}
+
+end:
+	if (ret == 0)
+		if ((ret = rename(tpath, g_file)))
+			perror("do_set(): rename()");
+
+	fclose(ftmp);
+	return ret;
 }
 
 /* ==========================================================================
@@ -377,6 +695,7 @@ int main
 	else if ((f = fopen(g_file, "r")) == NULL)
 		diep("fopen()");
 
+	srand(time(NULL));
 	ret = action == ACTION_SET ? do_set(f) : do_get(f);
 
 	/* we may close stdin here, but that's ok */

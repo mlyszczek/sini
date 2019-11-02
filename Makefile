@@ -11,7 +11,7 @@ check: sini
 	./test.sh
 
 clean:
-	$(RM) -f sini
+	$(RM) sini
 
 install: sini
 	install $< $(DESTDIR)
