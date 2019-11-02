@@ -22,6 +22,7 @@ clean:
 	$(RM) coverage.info
 	$(RM) main.gcda
 	$(RM) main.gcno
+	$(RM) main.plist
 	$(RM) -r ./coverage
 
 install: sini
@@ -35,4 +36,9 @@ coverage: check
 	$(LCOV) --directory . --capture --output-file coverage.info --no-checksum --compat-libtool
 	LANG=C $(GENHTML) --prefix . --output-directory coverage --title "Code Coverage" --legend --show-details coverage.info
 
-.PHONY: clean install uninstall check
+main.plist:
+	clang --analyze main.c -o $@
+
+analyze: main.plist
+
+.PHONY: clean install uninstall check analyze
