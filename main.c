@@ -113,7 +113,8 @@ static void print_usage(void)
 "  file      ini file to manipulate on, optional when SINI_FILE envvar is set\n"
 "  object    ini object in format section.name, .name for no section\n"
 "  value     value to store in <file>, put in file as-is\n"
-"\n"
+"\n");
+	printf(
 "examples:\n"
 "\n"
 "  sini get config.ini server.ip\n"
@@ -456,7 +457,7 @@ static int gen_tmp_file
 	if (strlen(g_file) + sizeof(tmp_part) > path_size)
 		ret("can't create temp file, path to <file> too large");
 
-	if (strlen(basenam(g_file)) + sizeof(tmp_part) > NAME_MAX)
+	if (strlen(basenam(g_file)) + sizeof(tmp_part) > FILENAME_MAX)
 		ret("can't create temp file, <file> name too large");
 
 	tmp_part[0] = '.';
@@ -522,15 +523,12 @@ static int do_set
 {
 	FILE  *ftmp;            /* temporary file with new ini content */
 	char  *l;               /* pointer to line[], for easy manipulation */
-	char  *delim;           /* points to '=' delimiter */
 	char  *value;           /* pointer to ini value for section.name */
 	char   line[LINE_MAX];  /* line from ini file being curently parsed */
-	char  tpath[PATH_MAX];  /* path to temporary file */
-	int    ret;
+	char   tpath[PATH_MAX]; /* path to temporary file */
+	int    ret;             /* return code from function */
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-
-	ret = 0;
 
 	ftmp = stdout;
 	if (strcmp(g_file, "-"))

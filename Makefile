@@ -4,6 +4,7 @@ LINE_MAX ?= 4096
 COVERAGE ?= n
 LCOV ?= lcov
 GENHTML ?= genhtml
+WARN_FLAGS = -Wall -Wextra -Wpedantic
 
 FLAGS = -DSINI_VERSION=\"$(VERSION)\" -DLINE_MAX=$(LINE_MAX)
 
@@ -12,7 +13,7 @@ COV_FLAGS = --coverage -lgcov
 endif
 
 sini: main.c
-	$(CC) -o $@ $^ $(FLAGS) $(CFLAGS) $(COV_FLAGS)
+	$(CC) -o $@ $^ $(FLAGS) $(CFLAGS) $(COV_FLAGS) $(WARN_FLAGS)
 
 check: sini
 	./test.sh
