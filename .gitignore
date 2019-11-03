@@ -1,2 +1,6 @@
 *.swp
+*.gcda
+*.gcno
+coverage.info
+coverage
 sini
