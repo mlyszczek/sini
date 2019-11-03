@@ -18,7 +18,7 @@ sini: main.c
 	$(CC) -o $@ $^ $(FLAGS) $(CFLAGS) $(COV_FLAGS) $(WARN_FLAGS)
 
 check: sini
-	./test.sh
+	cd tst && ./test.sh
 
 clean:
 	# main binary

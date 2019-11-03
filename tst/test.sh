@@ -6,7 +6,7 @@
 
 
 . ./mtest.sh
-sini=./sini
+sini=../sini
 test_ini="./test.ini"
 tmp_ini="./tmp.ini"
 
