@@ -49,7 +49,7 @@ coverage: clean check
 main.plist:
 	clang --analyze main.c -o $@
 
-analyze: main.plist
+clang-analyze: main.plist
 
 # pvs-studio is pretty neat static code analyzer that nicely
 # complement with clang's analyzer, and they have free licenses
@@ -62,4 +62,6 @@ pvs-studio.log: clean
 pvs-analyze: pvs-studio.log
 	$(PLOG) -a "GA:1,2;64:1;OP:1,2,3;CS:1;MISRA:1,2" -t tasklist -o $@ $<
 
-.PHONY: clean install uninstall check analyze
+analyze: pvs-analyze clang-analyze
+
+.PHONY: clean install uninstall check analyze clang-analyze
