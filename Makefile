@@ -42,7 +42,7 @@ uninstall:
 	@echo "There is no uninstall target, try \`find /usr -name sini'"
 	@echo "to locate binary and remove it manually"
 
-coverage: check
+coverage: clean check
 	$(LCOV) --directory . --capture --output-file coverage.info --no-checksum --compat-libtool
 	LANG=C $(GENHTML) --prefix . --output-directory coverage --title "Code Coverage" --legend --show-details coverage.info
 

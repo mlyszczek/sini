@@ -10,6 +10,47 @@ sini=./sini
 test_ini="./test.ini"
 tmp_ini="./tmp.ini"
 
+out=
+err=
+workfile=
+
+## ==========================================================================
+#               ____                     __   _
+#              / __/__  __ ____   _____ / /_ (_)____   ____   _____
+#             / /_ / / / // __ \ / ___// __// // __ \ / __ \ / ___/
+#            / __// /_/ // / / // /__ / /_ / // /_/ // / / /(__  )
+#           /_/   \__,_//_/ /_/ \___/ \__//_/ \____//_/ /_//____/
+#
+## ==========================================================================
+
+
+## ==========================================================================
+#   Generate random string. Function appends '\n' automatically, to generate
+#   string with 128 byte (including \n") pass 127 as first argument.
+#
+#   $1 - number of characters to generate (excluding '\n'
+## ==========================================================================
+
+
+randstr()
+{
+	cat /dev/urandom | tr -dc 'a-zA-Z0-9' | tr -d '\0' | fold -w $1 | head -n 1
+}
+
+
+mt_prepare_test()
+{
+	out=$(mktemp)
+	err=$(mktemp)
+	workfile=$(mktemp)
+}
+
+mt_cleanup_test()
+{
+	rm -f ${out}
+	rm -f ${err}
+	rm -f ${workfile}
+}
 
 ## ==========================================================================
 #                           __               __
@@ -33,17 +74,17 @@ get_good()
 
 	case ${mode} in
 		normal)
-			out="$(${sini} get ${test_ini} "${object}")"
+			pout="$(${sini} get ${test_ini} "${object}")"
 			;;
 		envvar)
-			out="$(SINI_FILE=${test_ini} ${sini} get "${object}")"
+			pout="$(SINI_FILE=${test_ini} ${sini} get "${object}")"
 			;;
 		pipein)
-			out="$(cat ${test_ini} | ${sini} get - "${object}")"
+			pout="$(cat ${test_ini} | ${sini} get - "${object}")"
 			;;
 	esac
 	mt_fail "[ ${?} -eq 0 ]"
-	mt_fail "[ \"x${out}\" = \"x${value}\" ]"
+	mt_fail "[ \"x${pout}\" = \"x${value}\" ]"
 }
 
 
@@ -57,8 +98,6 @@ arg_error()
 	msg=${2}
 
 	msg+=", check \`sini -h'"
-	out=$(mktemp)
-	err=$(mktemp)
 	eval ${sini} ${args} >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 
@@ -72,9 +111,6 @@ arg_error()
 		echo err: "${stderr}"
 		echo exp: "${msg}"
 	fi
-
-	rm ${out}
-	rm ${err}
 }
 
 
@@ -84,16 +120,11 @@ arg_error()
 
 object_not_found()
 {
-	out=$(mktemp)
-	err=$(mktemp)
 	${sini} ${test_ini} nonexisting.object >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
 	mt_fail "[ $(stat --format=%s ${err}) -eq 0 ]"
-
-	rm ${out}
-	rm ${err}
 }
 
 
@@ -103,16 +134,145 @@ object_not_found()
 
 object_not_found_in_matchin_section()
 {
-	out=$(mktemp)
-	err=$(mktemp)
 	${sini} ${test_ini} section.does-not-exist >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
 	mt_fail "[ $(stat --format=%s ${err}) -eq 0 ]"
+}
 
-	rm ${out}
-	rm ${err}
+
+## ==========================================================================
+## ==========================================================================
+
+
+object_not_found_in_last_matchin_section()
+{
+	${sini} ${test_ini} section-ind-space.does-not-exist >${out} 2>${err}
+	mt_fail "[ ${?} -eq 2 ]"
+
+	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
+	mt_fail "[ $(stat --format=%s ${err}) -eq 0 ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+get_with_max_path()
+{
+	# crude test assuming PAH_MAX is 4096 and NAME_LEN 255
+
+	path="/tmp/$(randstr 255)"
+	path_to_rm=${path}
+	for i in $(seq 1 1 14); do
+		path+="/$(randstr 255)"
+	done
+
+	path+="/$(randstr 235)"
+	mkdir -p ${path}
+	path+="/cfg.ini"
+	echo "name=value" > ${path}
+
+	${sini} set ${path} .name value1
+	mt_fail "[ ${?} -eq 0 ]"
+	mt_fail "[ \"$(cat ${path})\" = \"name = value1\" ]"
+
+	rm -rf "${path_to_rm}"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+get_with_max_name()
+{
+	# crude test assuming PAH_MAX is 4096 and NAME_LEN 255
+
+	path="/tmp/$(randstr 247)"
+	echo "name=value" > ${path}
+
+	${sini} set ${path} .name value1
+	mt_fail "[ ${?} -eq 0 ]"
+	mt_fail "[ \"$(cat ${path})\" = \"name = value1\" ]"
+
+	rm -rf "${path}"
+}
+
+## ==========================================================================
+## ==========================================================================
+
+
+get_with_too_big_path()
+{
+	# crude test assuming PAH_MAX is 4096 and NAME_LEN 255
+
+	path="/tmp/$(randstr 255)"
+	path_to_rm=${path}
+	for i in $(seq 1 1 14); do
+		path+="/$(randstr 255)"
+	done
+
+	path+="/$(randstr 236)"
+	mkdir -p ${path}
+	path+="/cfg.ini"
+	echo "name=value" > ${path}
+
+	${sini} set ${path} .name value1 >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	mt_fail "[ \"$(cat ${path})\" = \"name=value\" ]"
+	mt_fail "[ \"$(cat ${err})\" = \"can't create temp file, path to <file> too large\" ]"
+	mt_fail "[ -z \"$(cat ${out})\" ]"
+
+	rm -rf "${path_to_rm}"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+get_with_too_big_name()
+{
+	# crude test assuming PAH_MAX is 4096 and NAME_LEN 255
+
+	path="/tmp/$(randstr 248)"
+	echo "name=value" > ${path}
+
+	${sini} set ${path} .name value1 >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	mt_fail "[ \"$(cat ${path})\" = \"name=value\" ]"
+	mt_fail "[ \"$(cat ${err})\" = \"can't create temp file, <file> name too large\" ]"
+	mt_fail "[ -z \"$(cat ${out})\" ]"
+
+	rm -rf "${path}"
+}
+## ==========================================================================
+## ==========================================================================
+
+
+do_invalid()
+{
+	action=${1}
+	printf "${2}\n" > ${workfile}
+	object=${3}
+	error=${4}
+
+	${sini} ${action} ${workfile} ${object} value >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+
+	stderr=$(cat ${err})
+	mt_fail "[ $(tail -c1 ${err} | wc -l) -eq 1 ]"
+	if [ "${stderr}" != "${error}" ]; then
+		mt_fail "test -z 'stderr != error'"
+		echo err: "${stderr}"
+		echo exp: "${error}"
+	fi
 }
 
 
@@ -128,7 +288,6 @@ set_good()
 	value=${4}
 	mode=${5}
 
-	workfile=$(mktemp)
 	expectfile=$(mktemp)
 
 	printf "${expect}\n" > ${expectfile}
@@ -160,8 +319,171 @@ set_good()
 	diff ${workfile} ${expectfile}
 	mt_fail "[ ${?} -eq 0 ]"
 
-	rm ${workfile}
 	rm ${expectfile}
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+print_help()
+{
+	eval ${sini} -h >${out} 2>${err}
+	mt_fail "[ ${?} -eq 0 ]"
+
+	stderr="$(cat ${err})"
+	mt_fail "[ -z \"${stderr}\" ]"
+	mt_fail "grep 'sini - shell ini file manipulator' ${out} >/dev/null"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+print_version()
+{
+	eval ${sini} -v >${out} 2>${err}
+	mt_fail "[ ${?} -eq 0 ]"
+
+	stderr="$(cat ${err})"
+	mt_fail "[ -z \"${stderr}\" ]"
+	mt_fail "grep -E 'sini v[0-9]' ${out} >/dev/null"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+line_too_big()
+{
+	max_line=$(strings ${sini} | grep "line longer than" | grep -Eo "[0-9]+")
+	name=$(randstr $((max_line / 2 + 100)))
+	value=$(randstr $((max_line / 2 + 100)))
+	echo $name = $value > ${workfile}
+
+	${sini} ${workfile} .anything >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"line longer than ${max_line}. Sorry.\" ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+section_line_too_big()
+{
+	max_line=$(strings ${sini} | grep "line longer than" | grep -Eo "[0-9]+")
+	section=$(randstr $((max_line + 100)))
+	echo "[${section}]" > ${workfile}
+	echo "name = value" >> ${workfile}
+
+	${sini} ${workfile} sec.anything >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"line longer than ${max_line}. Sorry.\" ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+comment_line_too_big()
+{
+	max_line=$(strings ${sini} | grep "line longer than" | grep -Eo "[0-9]+")
+	comment=$(randstr $((max_line + 100)))
+	echo "; ${comment}" > ${workfile}
+	echo "name = value" >> ${workfile}
+
+	${sini} ${workfile} .anything >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"line longer than ${max_line}. Sorry.\" ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+no_such_file()
+{
+	${sini} non-existing-file .anything >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"failed to open <file>: No such file or directory\" ]"
+}
+
+## ==========================================================================
+## ==========================================================================
+
+
+read_access()
+{
+	echo "name = value" > ${workfile}
+	chmod 200 ${workfile}
+
+	${sini} ${workfile} .anything >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"failed to open <file>: Permission denied\" ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+write_access()
+{
+	echo "name = value" > ${workfile}
+	chmod 400 ${workfile}
+
+	${sini} set ${workfile} .anything whatever >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"failed to open <file>: Permission denied\" ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+dir_write_access()
+{
+	workdir=$(mktemp -d)
+	workfil=$(mktemp -p ${workdir})
+
+	echo "name = value" > ${workfil}
+	chmod 500 ${workdir}
+
+	${sini} set ${workfil} .anything whatever >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"failed to open temporary data: Permission denied\" ]"
+
+	chmod -R 777 ${workdir}
+	rm -r ${workdir}
 }
 
 
@@ -173,6 +495,7 @@ set_good()
 #                       /____/ \__/ \__,_//_/    \__/
 #
 ## ==========================================================================
+
 
 tests="space=value
 tab=value
@@ -256,13 +579,13 @@ name0 = value0\nname1 = value1
 .name1:value5 6
 name0 = value0\nname1 = value5 6
 
-name0 = value0\nname1 = value5 6\n[s s]\nn = 5\n[s 2]\nn = 3
-s s.n:3
-name0 = value0\nname1 = value5 6\n[s s]\nn = 3\n[s 2]\nn = 3
+name0 = value0\nname1 = value5 6\n[s s]\nn = 5\n[s 2]\n\n\nn = 3
+s 2.n:4
+name0 = value0\nname1 = value5 6\n[s s]\nn = 5\n[s 2]\n\n\nn = 4
 
-name0 = value0\nname1 = value5 6\n[s s]\nn = 5\n[s 2]\nn = 3
+name0 = value0\nname1 = value5 6\n\n;comment\n\n[s s]\nn = 5\n[s 2]\nn = 3
 s s.p:2
-name0 = value0\nname1 = value5 6\n[s s]\nn = 5\np = 2\n[s 2]\nn = 3
+name0 = value0\nname1 = value5 6\n\n;comment\n\n[s s]\nn = 5\np = 2\n[s 2]\nn = 3
 "
 
 set -- ${set_in}
@@ -292,6 +615,41 @@ while true; do
 	done
 done
 
+invalids="
+name:missing '\''='\'' in key=value, aborting
+= value:empty key detected, aborting
+   = value:empty key detected, aborting
+ = :empty key detected, aborting"
+
+invalids_section="
+name = value\n[a]\nname:missing '\''='\'' in key=value, aborting
+name = value\n[a]\n= value:empty key detected, aborting
+name = value\n[a]\n   = value:empty key detected, aborting
+name = value\n[a]\n = :empty key detected, aborting
+name = value\n[a\nname = value:unterminated section found, aborting
+"
+
+i=0
+for inval in ${invalids}; do
+	i=$(( i + 1 ))
+	file=$(echo "${inval}" | cut -f1 -d:)
+	error=$(echo "${inval}" | cut -f2 -d:)
+	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" .a "'${error}'"
+	# redo error, as it is somehow modified by eval (?)
+	error=$(echo "${inval}" | cut -f2 -d:)
+	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" .a "'${error}'"
+done
+
+for inval in ${invalids_section}; do
+	i=$(( i + 1 ))
+	file=$(echo "${inval}" | cut -f1 -d:)
+	error=$(echo "${inval}" | cut -f2 -d:)
+	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" a.a "'${error}'"
+	# redo error, as it is somehow modified by eval (?)
+	error=$(echo "${inval}" | cut -f2 -d:)
+	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" a.a "'${error}'"
+done
+
 
 args="'':no arguments specified
 get:file not specified
@@ -315,6 +673,19 @@ done
 
 mt_run object_not_found
 mt_run object_not_found_in_matchin_section
-
+mt_run object_not_found_in_last_matchin_section
+mt_run print_help
+mt_run print_version
+mt_run line_too_big
+mt_run section_line_too_big
+mt_run comment_line_too_big
+mt_run no_such_file
+mt_run read_access
+mt_run write_access
+mt_run get_with_max_path
+mt_run get_with_too_big_path
+mt_run get_with_max_name
+mt_run get_with_too_big_name
+mt_run dir_write_access
 
 mt_return

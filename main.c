@@ -143,8 +143,6 @@ void random_string
 	size_t             i;
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-	if (l == 0)
-		return;
 
 	for (i = 0; i != l; ++i)
 		s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
@@ -457,7 +455,7 @@ static int gen_tmp_file
 	if (strlen(g_file) + sizeof(tmp_part) > path_size)
 		ret("can't create temp file, path to <file> too large");
 
-	if (strlen(basenam(g_file)) + sizeof(tmp_part) > FILENAME_MAX)
+	if (strlen(basenam(g_file)) + sizeof(tmp_part) > NAME_MAX)
 		ret("can't create temp file, <file> name too large");
 
 	tmp_part[0] = '.';
@@ -501,11 +499,11 @@ static int copy_file
 			if (feof(fsrc))
 				return 0;
 			if (ferror(fsrc))
-				retp("copy_file(): fread()");
+				retp("failed to write data to temp file, failed to read ini");
 		}
 
 		if (w != r)
-			retp("copy_file(): fwrite()");
+			retp("failed to write data to temp file");
 	}
 }
 
@@ -537,7 +535,7 @@ static int do_set
 			return -1;
 
 		if ((ftmp = fopen(tpath, "w")) == NULL)
-			retp("do_set(): fopen()");
+			retp("failed to open temporary data");
 	}
 
 	/* we support ini without section, so if section was not set,
@@ -690,8 +688,16 @@ int main
 
 	if (strcmp(g_file, "-") == 0)
 		f = stdin;
-	else if ((f = fopen(g_file, "r")) == NULL)
-		diep("fopen()");
+
+	/* since we do not write to <file> with `set' command (we use
+	 * rename(3) so we need write permissions to directory not
+	 * file), we still try to open <file> with write access, as it
+	 * is not nice to write (or remove and create new in our case)
+	 * to a write protected fle
+	 */
+
+	else if ((f = fopen(g_file, action == ACTION_SET ? "r+" : "r")) == NULL)
+		diep("failed to open <file>");
 
 	srand(time(NULL));
 	ret = action == ACTION_SET ? do_set(f) : do_get(f);
