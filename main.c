@@ -608,7 +608,7 @@ got_section:
 	}
 
 end:
-	if (ret == 0)
+	if (ret == 0 && strcmp(g_file, "-"))
 		if ((ret = rename(tpath, g_file)))
 			perror("do_set(): rename()");
 

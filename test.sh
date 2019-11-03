@@ -29,17 +29,21 @@ get_good()
 {
 	object="${1}"
 	value="${2}"
+	mode="${3}"
 
-	out0="$(${sini} get ${test_ini} "${object}")"
+	case ${mode} in
+		normal)
+			out="$(${sini} get ${test_ini} "${object}")"
+			;;
+		envvar)
+			out="$(SINI_FILE=${test_ini} ${sini} get "${object}")"
+			;;
+		pipein)
+			out="$(cat ${test_ini} | ${sini} get - "${object}")"
+			;;
+	esac
 	mt_fail "[ ${?} -eq 0 ]"
-	out1="$(cat ${test_ini} | ${sini} get - "${object}")"
-	mt_fail "[ ${?} -eq 0 ]"
-	out2="$(SINI_FILE=${test_ini} ${sini} get "${object}")"
-	mt_fail "[ ${?} -eq 0 ]"
-
-	mt_fail "[ \"x${out0}\" = \"x${value}\" ]"
-	mt_fail "[ \"x${out1}\" = \"x${value}\" ]"
-	mt_fail "[ \"x${out2}\" = \"x${value}\" ]"
+	mt_fail "[ \"x${out}\" = \"x${value}\" ]"
 }
 
 
@@ -55,7 +59,7 @@ arg_error()
 	msg+=", check \`sini -h'"
 	out=$(mktemp)
 	err=$(mktemp)
-	${sini} ${args} >${out} 2>${err}
+	eval ${sini} ${args} >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 
 	stdout=$(cat ${out})
@@ -122,6 +126,7 @@ set_good()
 	expect=${2}
 	object=${3}
 	value=${4}
+	mode=${5}
 
 	workfile=$(mktemp)
 	expectfile=$(mktemp)
@@ -132,13 +137,28 @@ set_good()
 		printf "\n" >> ${workfile}
 	fi
 
-	${sini} set ${workfile} "${object}" "${value}"
-	mt_fail "[ ${?} -eq 0 ]"
+	case ${mode} in
+		normal)
+			${sini} set ${workfile} "${object}" "${value}"
+			ret=${?}
+			;;
+
+		envvar)
+			SINI_FILE=${workfile} ${sini} set "${object}" "${value}"
+			ret=${?}
+			;;
+
+		pipein)
+			tmpfile=$(mktemp)
+			cat "${workfile}" | ${sini} set - "${object}" "${value}" >${tmpfile}
+			ret=${?}
+			mv ${tmpfile} ${workfile}
+			;;
+	esac
+
+	mt_fail "[ ${ret} -eq 0 ]"
 	diff ${workfile} ${expectfile}
 	mt_fail "[ ${?} -eq 0 ]"
-
-	#hexdump -C ${workfile}
-	#hexdump -C ${expectfile}
 
 	rm ${workfile}
 	rm ${expectfile}
@@ -180,28 +200,13 @@ for s in $sections; do
 			fi
 			tname="${object} -> ${value}"
 
-			mt_run_named get_good "${tname}" "'${object}'" "'${value}'"
+			for m in normal envvar pipein; do
+				mt_run_named get_good "get (${m}) ${tname}" "'${object}'" \
+					"'${value}'" ${m}
+			done
 		done
 	done
 done
-
-
-args="'':no arguments specified
-get:file not specified
-get .name:invalid object name
-get file name:invalid object name
-get file section.:invalid object name
-get file .:invalid object name"
-
-for arg in ${args}; do
-	a="$(echo "${arg}" | cut -f1 -d:)"
-	e="$(echo "${arg}" | cut -f2 -d:)"
-	tname="sini ${a}"
-	mt_run_named arg_error "${tname}" "'${a}'" "'${e}'"
-done
-
-mt_run object_not_found
-mt_run object_not_found_in_matchin_section
 
 set_in="''
 .name:value
@@ -280,8 +285,36 @@ while true; do
 	expect=${tmp}
 	i=$((i + 1))
 
-	mt_run_named set_good "set_good$(( (i - 1) / 3))" \
-		"'${begin}'" "'${expect}'" "'${object}'" "'${value}'"
+	for m in normal envvar pipein
+	do
+		mt_run_named set_good "set (${m}) $(( (i - 1) / 3))" \
+			"'${begin}'" "'${expect}'" "'${object}'" "'${value}'" ${m}
+	done
 done
+
+
+args="'':no arguments specified
+get:file not specified
+get .name:invalid object name
+get file name:invalid object name
+get file section.:invalid object name
+get file .:invalid object name
+set:file not specified
+set file:invalid object name
+set file object:invalid object name
+set file .:invalid object name
+set file section.:invalid object name
+set file a.object:value not specified"
+
+for arg in ${args}; do
+	a="$(echo "${arg}" | cut -f1 -d:)"
+	e="$(echo "${arg}" | cut -f2 -d:)"
+	tname="sini ${a}"
+	mt_run_named arg_error "${tname}" "'${a}'" "'${e}'"
+done
+
+mt_run object_not_found
+mt_run object_not_found_in_matchin_section
+
 
 mt_return
