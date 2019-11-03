@@ -60,6 +60,7 @@
 	} while (0)
 
 #define STRINGIFY(X) #X
+#define NSTR(N) STRINGIFY(N)
 
 #ifndef LINE_MAX
 #	define LINE_MAX 4096
@@ -69,7 +70,6 @@
 #	define SINI_VERSION "9999"
 #endif
 
-#define LINE_MAX_STR STRINGIFY(LINE_MAX)
 
 
 #define ACTION_GET 0
@@ -324,7 +324,7 @@ static int get_line
 	}
 
 	if (line[linelen - 1] == '\0' && line[linelen - 2] != '\n')
-		ret("line longer than " LINE_MAX_STR ". Sorry.");
+		ret("line longer than " NSTR(LINE_MAX) ". Sorry.");
 
 	while (isspace(**l)) ++*l;
 	/* skip comments and blank lines */
