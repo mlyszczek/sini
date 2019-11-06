@@ -6,9 +6,10 @@
 
 
 . ./mtest.sh
-sini=../sini
+sini="./sini"
 test_ini="./test.ini"
 tmp_ini="./tmp.ini"
+fo_init="./libfo.init"
 
 out=
 err=
@@ -52,6 +53,17 @@ mt_cleanup_test()
 	rm -f ${workfile}
 }
 
+fo_sini()
+{
+	export LD_PRELOAD=./libfo.so
+	${sini} $@
+	ret=${?}
+	unset LD_PRELOAD
+	unset SINI_FILE
+	return ${ret}
+}
+
+
 ## ==========================================================================
 #                           __               __
 #                          / /_ ___   _____ / /_ _____
@@ -74,13 +86,13 @@ get_good()
 
 	case ${mode} in
 		normal)
-			pout="$(${sini} get ${test_ini} "${object}")"
+			pout="$(fo_sini get ${test_ini} "${object}")"
 			;;
 		envvar)
-			pout="$(SINI_FILE=${test_ini} ${sini} get "${object}")"
+			pout="$(SINI_FILE=${test_ini} fo_sini get "${object}")"
 			;;
 		pipein)
-			pout="$(cat ${test_ini} | ${sini} get - "${object}")"
+			pout="$(cat ${test_ini} | fo_sini get - "${object}")"
 			;;
 	esac
 	mt_fail "[ ${?} -eq 0 ]"
@@ -98,7 +110,7 @@ arg_error()
 	msg=${2}
 
 	msg+=", check \`sini -h'"
-	eval ${sini} ${args} >${out} 2>${err}
+	eval fo_sini ${args} >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 
 	stdout=$(cat ${out})
@@ -120,7 +132,7 @@ arg_error()
 
 object_not_found()
 {
-	${sini} ${test_ini} nonexisting.object >${out} 2>${err}
+	fo_sini ${test_ini} nonexisting.object >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
@@ -134,7 +146,7 @@ object_not_found()
 
 object_not_found_in_matchin_section()
 {
-	${sini} ${test_ini} section.does-not-exist >${out} 2>${err}
+	fo_sini ${test_ini} section.does-not-exist >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
@@ -148,7 +160,7 @@ object_not_found_in_matchin_section()
 
 object_not_found_in_last_matchin_section()
 {
-	${sini} ${test_ini} section-ind-space.does-not-exist >${out} 2>${err}
+	fo_sini ${test_ini} section-ind-space.does-not-exist >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
@@ -175,7 +187,7 @@ get_with_max_path()
 	path+="/cfg.ini"
 	echo "name=value" > ${path}
 
-	${sini} set ${path} .name value1
+	fo_sini set ${path} .name value1
 	mt_fail "[ ${?} -eq 0 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name = value1\" ]"
 
@@ -194,7 +206,7 @@ get_with_max_name()
 	path="/tmp/$(randstr 247)"
 	echo "name=value" > ${path}
 
-	${sini} set ${path} .name value1
+	fo_sini set ${path} .name value1
 	mt_fail "[ ${?} -eq 0 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name = value1\" ]"
 
@@ -220,7 +232,7 @@ get_with_too_big_path()
 	path+="/cfg.ini"
 	echo "name=value" > ${path}
 
-	${sini} set ${path} .name value1 >${out} 2>${err}
+	fo_sini set ${path} .name value1 >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name=value\" ]"
 	mt_fail "[ \"$(cat ${err})\" = \"can't create temp file, path to <file> too large\" ]"
@@ -241,7 +253,7 @@ get_with_too_big_name()
 	path="/tmp/$(randstr 248)"
 	echo "name=value" > ${path}
 
-	${sini} set ${path} .name value1 >${out} 2>${err}
+	fo_sini set ${path} .name value1 >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name=value\" ]"
 	mt_fail "[ \"$(cat ${err})\" = \"can't create temp file, <file> name too large\" ]"
@@ -260,7 +272,7 @@ do_invalid()
 	object=${3}
 	error=${4}
 
-	${sini} ${action} ${workfile} ${object} value >${out} 2>${err}
+	fo_sini ${action} ${workfile} ${object} value >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 
 	stdout="$(cat ${out})"
@@ -298,18 +310,18 @@ set_good()
 
 	case ${mode} in
 		normal)
-			${sini} set ${workfile} "${object}" "${value}"
+			fo_sini set ${workfile} "${object}" "${value}"
 			ret=${?}
 			;;
 
 		envvar)
-			SINI_FILE=${workfile} ${sini} set "${object}" "${value}"
+			SINI_FILE=${workfile} fo_sini set "${object}" "${value}"
 			ret=${?}
 			;;
 
 		pipein)
 			tmpfile=$(mktemp)
-			cat "${workfile}" | ${sini} set - "${object}" "${value}" >${tmpfile}
+			cat "${workfile}" | fo_sini set - "${object}" "${value}" >${tmpfile}
 			ret=${?}
 			mv ${tmpfile} ${workfile}
 			;;
@@ -329,7 +341,7 @@ set_good()
 
 print_help()
 {
-	eval ${sini} -h >${out} 2>${err}
+	eval fo_sini -h >${out} 2>${err}
 	mt_fail "[ ${?} -eq 0 ]"
 
 	stderr="$(cat ${err})"
@@ -344,7 +356,7 @@ print_help()
 
 print_version()
 {
-	eval ${sini} -v >${out} 2>${err}
+	eval fo_sini -v >${out} 2>${err}
 	mt_fail "[ ${?} -eq 0 ]"
 
 	stderr="$(cat ${err})"
@@ -364,7 +376,7 @@ line_too_big()
 	value=$(randstr $((max_line / 2 + 100)))
 	echo $name = $value > ${workfile}
 
-	${sini} ${workfile} .anything >${out} 2>${err}
+	fo_sini ${workfile} .anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -384,7 +396,7 @@ section_line_too_big()
 	echo "[${section}]" > ${workfile}
 	echo "name = value" >> ${workfile}
 
-	${sini} ${workfile} sec.anything >${out} 2>${err}
+	fo_sini ${workfile} sec.anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -404,7 +416,7 @@ comment_line_too_big()
 	echo "; ${comment}" > ${workfile}
 	echo "name = value" >> ${workfile}
 
-	${sini} ${workfile} .anything >${out} 2>${err}
+	fo_sini ${workfile} .anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -419,7 +431,7 @@ comment_line_too_big()
 
 no_such_file()
 {
-	${sini} non-existing-file .anything >${out} 2>${err}
+	fo_sini non-existing-file .anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -436,7 +448,7 @@ read_access()
 	echo "name = value" > ${workfile}
 	chmod 200 ${workfile}
 
-	${sini} ${workfile} .anything >${out} 2>${err}
+	fo_sini ${workfile} .anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -454,7 +466,7 @@ write_access()
 	echo "name = value" > ${workfile}
 	chmod 400 ${workfile}
 
-	${sini} set ${workfile} .anything whatever >${out} 2>${err}
+	fo_sini set ${workfile} .anything whatever >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -475,7 +487,7 @@ dir_write_access()
 	echo "name = value" > ${workfil}
 	chmod 500 ${workdir}
 
-	${sini} set ${workfil} .anything whatever >${out} 2>${err}
+	fo_sini set ${workfil} .anything whatever >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -484,6 +496,98 @@ dir_write_access()
 
 	chmod -R 777 ${workdir}
 	rm -r ${workdir}
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+eio_during_read()
+{
+	echo "fgets, 1, NULL, EIO" > ${fo_init}
+	echo "name = value" > ${workfile}
+
+	LIBFO_INIT_FILE=${fo_init} fo_sini get ${workfile} .anything  >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"error reading ini file: Input/output error\" ]"
+	mt_fail "[ \"$(cat ${workfile})\" = \"name = value\" ]"
+
+	rm ${fo_init}
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+eio_during_copy_file()
+{
+	tmp=$(mktemp)
+	echo "fread, 1, 5, EIO" > ${fo_init}
+	echo "name = value" > ${workfile}
+	echo "name2 = value2" >> ${workfile}
+	cp ${workfile} ${tmp}
+
+	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} .name val >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"failed to write data to temp file, failed to read ini: Input/output error\" ]"
+	mt_fail "diff ${tmp} ${workfile}"
+
+	rm ${tmp}
+	rm ${fo_init}
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+enospc_during_copy_file()
+{
+	tmp=$(mktemp)
+	echo "fwrite, 1, 5, ENOSPC" > ${fo_init}
+	echo "name = value" > ${workfile}
+	echo "name2 = value2" >> ${workfile}
+	cp ${workfile} ${tmp}
+
+	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} .name val >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"failed to write data to temp file: No space left on device\" ]"
+	mt_fail "diff ${tmp} ${workfile}"
+
+	rm ${tmp}
+	rm ${fo_init}
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+file_locked_during_rename()
+{
+	echo "rename, 1, -1, EBUSY" > ${fo_init}
+	echo "name = value" > ${workfile}
+
+	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} .name val >${out} 2>${err}
+	mt_fail "[ ${?} -eq 1 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ -z \"${stdout}\" ]"
+	error=$(cat ${err})
+	mt_fail "[ \"${error}\" = \"do_set(): rename(): Device or resource busy\" ]"
+	mt_fail "[ \"$(cat ${workfile})\" = \"name = value\" ]"
+
+	rm ${fo_init}
 }
 
 
@@ -687,5 +791,9 @@ mt_run get_with_too_big_path
 mt_run get_with_max_name
 mt_run get_with_too_big_name
 mt_run dir_write_access
+mt_run eio_during_read
+mt_run eio_during_copy_file
+mt_run enospc_during_copy_file
+mt_run file_locked_during_rename
 
 mt_return

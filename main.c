@@ -494,6 +494,9 @@ static int copy_file
 		r = fread(line, 1, linelen, fsrc);
 		w = fwrite(line, 1, r, fdst);
 
+		if (w != r)
+			retp("failed to write data to temp file");
+
 		if (r != linelen)
 		{
 			if (feof(fsrc))
@@ -501,9 +504,6 @@ static int copy_file
 			if (ferror(fsrc))
 				retp("failed to write data to temp file, failed to read ini");
 		}
-
-		if (w != r)
-			retp("failed to write data to temp file");
 	}
 }
 

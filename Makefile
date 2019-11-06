@@ -1,39 +1,28 @@
 DESTDIR ?= /usr/local/bin
 VERSION = 9999
 LINE_MAX ?= 4096
-COVERAGE ?= n
-LCOV ?= lcov
-GENHTML ?= genhtml
 WARN_FLAGS = -Wall -Wextra -Wpedantic
 PVS ?= pvs-studio-analyzer
 PLOG ?= plog-converter
 
 FLAGS = -DSINI_VERSION=\"$(VERSION)\" -DLINE_MAX=$(LINE_MAX)
 
-ifeq ($(COVERAGE),y)
-COV_FLAGS = --coverage -lgcov
-endif
-
 sini: main.c
 	$(CC) -o $@ $^ $(FLAGS) $(CFLAGS) $(COV_FLAGS) $(WARN_FLAGS)
 
-check: sini
-	cd tst && ./test.sh
+check:
+	$(MAKE) -C tst check
 
 clean:
 	# main binary
 	$(RM) sini
-	# gcov stuff
-	$(RM) coverage.info
-	$(RM) main.gcda
-	$(RM) main.gcno
-	$(RM) -r ./coverage
 	# clang analyzer
 	$(RM) main.plist
 	# pvs studio analyzer
 	$(RM) pvs-analyze
 	$(RM) pvs-studio.log
 	$(RM) strace_out
+	$(MAKE) -C tst clean
 
 install: sini
 	install $< $(DESTDIR)
@@ -41,10 +30,6 @@ install: sini
 uninstall:
 	@echo "There is no uninstall target, try \`find /usr -name sini'"
 	@echo "to locate binary and remove it manually"
-
-coverage: clean check
-	$(LCOV) --directory . --capture --output-file coverage.info --no-checksum --compat-libtool
-	LANG=C $(GENHTML) --prefix . --output-directory coverage --title "Code Coverage" --legend --show-details coverage.info
 
 main.plist:
 	clang --analyze main.c -o $@
@@ -64,4 +49,4 @@ pvs-analyze: pvs-studio.log
 
 analyze: pvs-analyze clang-analyze
 
-.PHONY: clean install uninstall check analyze clang-analyze
+.PHONY: clean install uninstall check analyze
