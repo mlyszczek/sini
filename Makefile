@@ -1,4 +1,4 @@
-DESTDIR ?= /usr/local/bin
+DESTDIR ?= /usr/local
 VERSION = 9999
 LINE_MAX ?= 4096
 WARN_FLAGS = -Wall -Wextra -Wpedantic
@@ -25,11 +25,10 @@ clean:
 	$(MAKE) -C tst clean
 
 install: sini
-	install $< $(DESTDIR)
+	install $< $(DESTDIR)/bin
 
 uninstall:
-	@echo "There is no uninstall target, try \`find /usr -name sini'"
-	@echo "to locate binary and remove it manually"
+	$(RM) $(DESTDIR)/bin/sini
 
 main.plist:
 	clang --analyze main.c -o $@
