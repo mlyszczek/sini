@@ -26,7 +26,8 @@ $(DISTDIR):
 	cp www/header.in www/index.in www/index.md www/man2html.sh $(DISTDIR)/www
 	cp www/post-process.sh $(DISTDIR)/www
 
-$(DISTDIR).tar.gz dist: $(DISTDIR)
+dist: $(DISTDIR).tar.gz
+$(DISTDIR).tar.gz: $(DISTDIR)
 	tar czf $@ $<
 
 $(DISTDIR).tar.bz2: $(DISTDIR)
