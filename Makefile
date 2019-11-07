@@ -1,9 +1,11 @@
 DESTDIR ?= /usr/local
 VERSION = 9999
+DISTDIR ?= sini-$(VERSION)
 LINE_MAX ?= 4096
 WARN_FLAGS = -Wall -Wextra -Wpedantic
 PVS ?= pvs-studio-analyzer
 PLOG ?= plog-converter
+MKDIR ?= mkdir -p
 
 FLAGS = -DSINI_VERSION=\"$(VERSION)\" -DLINE_MAX=$(LINE_MAX)
 
@@ -12,6 +14,39 @@ sini: main.c
 
 check:
 	$(MAKE) -C tst check
+
+$(DISTDIR):
+	$(RM) -r $(DISTDIR)
+	mkdir $(DISTDIR)
+	cp LICENSE Makefile main.c sini.1 readme.md $(DISTDIR)
+	mkdir $(DISTDIR)/tst
+	cp tst/Makefile tst/folist tst/mtest.sh tst/test.ini tst/test.sh $(DISTDIR)/tst
+	mkdir $(DISTDIR)/www
+	cp www/custom.css www/footer.in www/gen-download-page.sh $(DISTDIR)/www
+	cp www/header.in www/index.in www/index.md www/man2html.sh $(DISTDIR)/www
+	cp www/post-process.sh $(DISTDIR)/www
+
+$(DISTDIR).tar.gz dist: $(DISTDIR)
+	tar czf $@ $<
+
+$(DISTDIR).tar.bz2: $(DISTDIR)
+	tar cjf $@ $<
+
+$(DISTDIR).tar.xz: $(DISTDIR)
+	tar cJf $@ $<
+
+dist-all: $(DISTDIR).tar.gz $(DISTDIR).tar.bz2 $(DISTDIR).tar.xz
+
+distclean: clean
+	$(RM) -r sini-*
+
+distcheck: $(DISTDIR).tar.gz
+	$(RM) -r $(DISTDIR)
+	tar xzf $(DISTDIR).tar.gz
+	$(MAKE) -C $(DISTDIR) check
+	$(MKDIR) $(DISTDIR)/install
+	DESTDIR=install $(MAKE) -C $(DISTDIR) install
+	$(MAKE) -C $(DISTDIR) distclean
 
 clean:
 	# main binary
@@ -50,4 +85,4 @@ pvs-analyze: pvs-studio.log
 
 analyze: pvs-analyze clang-analyze
 
-.PHONY: clean install uninstall check analyze
+.PHONY: clean install uninstall check analyze www dist-all distclean distcheck dist
