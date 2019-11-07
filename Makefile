@@ -25,10 +25,12 @@ clean:
 	$(MAKE) -C tst clean
 
 install: sini
-	install $< $(DESTDIR)/bin
+	install -m0755 -D $< $(DESTDIR)/bin/$<
+	install -m0644 -D sini.1 $(DESTDIR)/share/man/man1/sini.1
 
 uninstall:
 	$(RM) $(DESTDIR)/bin/sini
+	$(RM) $(DESTDIR)/share/man/man1/sini.1
 
 main.plist:
 	clang --analyze main.c -o $@

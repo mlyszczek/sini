@@ -1,0 +1,115 @@
+.TH "SINI" "1" "01 Jan 1970 (v9999)" "bofc.pl"
+.SH NAME
+.PP
+.B sini
+- shell ini - manipulate ini files from command line or shell scripts.
+.SH SYNOPSIS
+.PP
+.BR sini\  [\  -h\  |\  -v\  ]
+.br
+.BR sini\  [ get ]
+.RI [< file >]\ < object >
+.br
+.BR sini\ set
+.RI [< file >]\ < object >\ < value >
+.PP
+Environment variables:
+.br
+.RS
+.BI SINI_FILE= file
+.RE
+.SH DESCRIPTION
+.SS COMMANDS
+.TP
+.B get
+Retrieves value from
+.I file
+for
+.I object.
+.B get
+argument can be omited, if that is the case,
+.BR sini (1)
+behaves just like if
+.B get
+was passed.
+If
+.I object
+is found, its value will be printed to
+.BR stdout ,
+otherwise nothing will be printed and error will be returned.
+.TP
+.B set
+Write new or update existing
+.I object
+with
+.I value
+in
+.IR  file .
+.B set
+works in non destructive way, so all comments and whitespaces will be
+preserved.
+When
+.I object
+already exists in
+.I file
+it will be updated.
+If
+.I object
+does not exist, it will be created at the end of existing section.
+If section does not exist it will be created at the end of file, then
+key and
+.I value
+will be stored.
+If
+.B set
+reads data from
+.BR stdin ,
+modified ini will be printed to
+.BR stdout .
+.BR sini (1)
+does not work with malformed input, if it finds anything it does not like,
+it will abort and original
+.I file
+will not be modified.
+.SS OPTIONS
+.TP
+.I file
+path to a ini file.
+When
+.B SINI_FILE
+environment variable is set, this parameters should be omited.
+When
+.I file
+is
+.RB ' - '
+(dash) character, ini structure is read from
+.B stdin
+instead.
+.TP
+.I object
+specifies on what
+.B ini
+object do the action.
+.I object
+consists of 2 parts in format
+.IB section . key .
+.I section
+may be omited, in which case
+.I object
+will address key that has no section - that is all keys that are on top of
+file before any section is defined.
+The dot must be always specified though, so if no section is not used, use
+.BI . key .
+.TP
+.I value
+valid only for
+.B set
+command.
+This value will be assigned to specified
+.IR key.
+.I value
+cannot contain new line characters, since
+.BR sini (1)
+does not support multiline values.
+.SH "BUG REPORTING"
+Please, report all bugs to "Michał Łyszczek <michal.lyszczek@bofc.pl>"
