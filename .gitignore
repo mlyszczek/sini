@@ -4,6 +4,7 @@
 coverage.info
 coverage
 sini
+sini-*
 tst/fo.h
 tst/fo.c
 tst/fo.o
