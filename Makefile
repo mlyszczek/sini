@@ -1,5 +1,5 @@
 DESTDIR ?= /usr/local
-VERSION = 9999
+VERSION = 0.1.0
 DISTDIR ?= sini-$(VERSION)
 LINE_MAX ?= 4096
 WARN_FLAGS = -Wall -Wextra -Wpedantic
