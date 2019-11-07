@@ -29,35 +29,12 @@
    ========================================================================== */
 
 
-#define die(S) do { \
-		fprintf(stderr, S "\n"); \
-		exit(1); \
-	} while (0)
-
-#define diep(S) do { \
-		perror(S); \
-		exit(1); \
-	} while (0)
-
-#define ret(S) do { \
-		fprintf(stderr, S "\n"); \
-		return -1; \
-	} while (0)
-
-#define retp(S) do { \
-		perror(S); \
-		return -1; \
-	} while (0)
-
-#define goto(S, L) do { \
-		fprintf(stderr, S "\n"); \
-		goto L; \
-	} while (0)
-
-#define gotop(S, L) do { \
-		perror(S); \
-		goto L; \
-	} while (0)
+#define die(S) do {      fprintf(stderr, S "\n"); exit(1); } while (0)
+#define ret(S) do {      fprintf(stderr, S "\n"); return -1; } while (0)
+#define goto(S, L) do {  fprintf(stderr, S "\n"); goto L; } while (0)
+#define diep(S) do {     perror(S); exit(1); } while (0)
+#define retp(S) do {     perror(S); return -1; } while (0)
+#define gotop(S, L) do { perror(S); goto L; } while (0)
 
 #define STRINGIFY(X) #X
 #define NSTR(N) STRINGIFY(N)
