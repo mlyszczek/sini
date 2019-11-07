@@ -1,0 +1,6 @@
+in_title="sini.bofc.pl - ini file manipulator from command line or shell script"
+in_description="sini is a shell program that reads or writes (in non desctructive way) to/from ini config files"
+in_author="Michał Łyszczek"
+in_lang="en"
+in_pygment=vim
+in_style=man

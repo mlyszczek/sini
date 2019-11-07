@@ -74,7 +74,7 @@ will not be modified.
 .SS OPTIONS
 .TP
 .I file
-path to a ini file.
+Path to a ini file.
 When
 .B SINI_FILE
 environment variable is set, this parameters should be omited.
@@ -87,7 +87,7 @@ is
 instead.
 .TP
 .I object
-specifies on what
+Specifies on what
 .B ini
 object do the action.
 .I object
@@ -102,7 +102,7 @@ The dot must be always specified though, so if no section is not used, use
 .BI . key .
 .TP
 .I value
-valid only for
+Valid only for
 .B set
 command.
 This value will be assigned to specified
@@ -111,5 +111,34 @@ This value will be assigned to specified
 cannot contain new line characters, since
 .BR sini (1)
 does not support multiline values.
+.SH "INI SPECIFICATION"
+.PP
+Since ini does not have any official specification, here are some
+assumptions made by sini(1).
+.TP
+multiline
+No multiline support, one declaration per line. Of course comments can be
+multiline.
+.TP
+sections,
+Section starts with '[' and ends with ']' on the same line, leading spaces
+are ignored, you can use any printable characters in section name,
+including spaces.
+.TP
+key
+In "key", all leading and trailing spaces around key are ignored, but
+spaces in key are allowed, so " space key=", "space key =" and " space key
+=" are all the same, key is "space key".
+Keys without value are allowed.
+.TP
+value
+In "value", leading spaces after "=" are ignored, but trailing spaces are
+kept. All characters are allowed
+.TP
+comments
+Comments starts with ';', leading spaces are ignored in comments, so " ;
+comment" is valid, no inline comments possible "key = value ; comment" is
+not valid, and value for the "key" will be "value ; comment", literaly.
 .SH "BUG REPORTING"
+.PP
 Please, report all bugs to "Michał Łyszczek <michal.lyszczek@bofc.pl>"

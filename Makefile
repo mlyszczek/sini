@@ -58,6 +58,10 @@ clean:
 	$(RM) pvs-studio.log
 	$(RM) strace_out
 	$(MAKE) -C tst clean
+	# www stuff
+	$(RM) www/downloads.html
+	$(RM) www/sini.1.html
+	$(RM) -r www/out
 
 install: sini
 	install -m0755 -D $< $(DESTDIR)/bin/$<
@@ -66,6 +70,12 @@ install: sini
 uninstall:
 	$(RM) $(DESTDIR)/bin/sini
 	$(RM) $(DESTDIR)/share/man/man1/sini.1
+
+www:
+	./www/gen-download-page.sh
+	./www/man2html.sh
+	kursg -iwww -owww/out
+	cd www && ./post-process.sh
 
 main.plist:
 	clang --analyze main.c -o $@
