@@ -48,9 +48,8 @@ echo "<h1>tarballs (source code)</h1>"
 echo "<pre>"
 
 files="$(get_files_from_remote "${remote}/" | \
-    grep "${project}-[0-9]*\.[0-9]*\.[0-9][\.-]\(r[0-9]\)\?")"
-versions="$(echo "${files}" | tr ' ' '\n' | rev | \
-    cut -f1 -d- | rev | cut -f1-3 -d. | sort -Vur)"
+    grep -P "${project}-\d+\.\d+\.\d+(-r\d+)?")"
+versions="$(echo "${files}" | tr ' ' '\n' | grep -Po "\d+\.\d+\.\d+(-r\d+)?")"
 
 for v in ${versions}
 do
