@@ -1,7 +1,7 @@
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man/man1
-VERSION = 0.1.0
+VERSION = 0.1.0-r1
 DISTDIR ?= sini-$(VERSION)
 LINE_MAX ?= 4096
 WARN_FLAGS = -Wall -Wextra -Wpedantic
