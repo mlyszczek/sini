@@ -1,4 +1,6 @@
-DESTDIR ?= /usr/local
+PREFIX ?= /usr/local
+BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/share/man/man1
 VERSION = 0.1.0
 DISTDIR ?= sini-$(VERSION)
 LINE_MAX ?= 4096
@@ -65,12 +67,12 @@ clean:
 	$(RM) -r www/out
 
 install: sini
-	install -m0755 -D $< $(DESTDIR)/bin/$<
-	install -m0644 -D sini.1 $(DESTDIR)/share/man/man1/sini.1
+	install -m0755 -D $< $(DESTDIR)$(BINDIR)/$<
+	install -m0644 -D sini.1 $(DESTDIR)$(MANDIR)/sini.1
 
 uninstall:
-	$(RM) $(DESTDIR)/bin/sini
-	$(RM) $(DESTDIR)/share/man/man1/sini.1
+	$(RM) $(DESTDIR)$(BINDIR)/sini
+	$(RM) $(DESTDIR)$(MANDIR)/sini.1
 
 www:
 	./www/gen-download-page.sh
