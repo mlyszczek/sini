@@ -44,7 +44,7 @@
 #endif
 
 #ifndef SINI_VERSION
-#	define SINI_VERSION "9999"
+#	define SINI_VERSION "0.2.0"
 #endif
 
 #ifndef PRINT_HELP

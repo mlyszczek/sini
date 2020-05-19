@@ -92,8 +92,8 @@ Compile time options
 Compilation can be tuned to save program an stack memory - this is usefull
 for small embedded system where couple of hundred of bytes is a lot.
 
-SINI_VERSION (default: 9999)
-----------------------------
+SINI_VERSION (default: 0.2.0)
+-----------------------------
 
 No a memory saving field, but it's still there. This string will be printed
 when '-v' is specified. This is set to proper value when building with
