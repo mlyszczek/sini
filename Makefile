@@ -8,7 +8,7 @@ WARN_FLAGS = -Wall -Wextra -Wpedantic
 PVS ?= pvs-studio-analyzer
 PLOG ?= plog-converter
 MKDIR ?= mkdir -p
-PRINT_HELP ?= 0
+PRINT_HELP ?= 1
 PRINT_LONG_HELP ?= 1
 SINI_STANDALONE ?= 1
 
