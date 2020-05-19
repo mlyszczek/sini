@@ -14,21 +14,21 @@ Full documentation about usage is available in [sini][1](1) manual page, but
 here are quick examples to get a quick grasp what [sini][1](1) does.
 
 ~~~
-# read .output-dir that is in no-section... section
-$ sini get termsend.ini .output-dir
+# read output-dir that is in no-section... section
+$ sini get termsend.ini output-dir
 /var/lib/termsend
 
 # get can be omited, read field ssl from section [port]
-$ sini termsend.ini port.ssl
+$ sini termsend.ini port ssl
 1339
 
 # file path can be exported and then get info passing only ini object
 $ export SINI_FILE=termsend.ini
-$ ./sini ssl.key-file
+$ ./sini ssl key-file
 /etc/termsend/termsend.key
 
 # ini can be passed via stdin (pipes)
-$ cat termsend.ini | ./sini - max.filesize
+$ cat termsend.ini | ./sini - max filesize
 10485760
 ~~~
 
@@ -39,12 +39,12 @@ and does *not* destroy file in any way.
 $ cat test.ini
 
 # set empty new object in empty test.ini file
-$ sini set test.ini .user termsend
+$ sini set test.ini user termsend
 $ cat test.ini
 user = termsend
 
 # add new object into non-existing section
-$ sini set test.ini port.ssl 1339
+$ sini set test.ini port ssl 1339
 $ cat test.ini
 user = termsend
 [port]
@@ -63,7 +63,7 @@ ssl = 1339
 
 ; non-ssl listen port
 plain = 1337
-$ sini set test.ini port.ssl 443
+$ sini set test.ini port ssl 443
 $ cat test.ini
 ; user that will run daemon
 user = termsend
@@ -86,22 +86,42 @@ Just run **make** and to install **make install**. [sini][1](1) is a valid
 It's also a single file program, so you can also manually build it just by
 calling **cc** program: **cc main.c -o sini**.
 
-Limitations
-===========
+Compile time options
+====================
 
-[sini][1](1) does not use any dynamic allocations, so there is max line limit
-imposed. By default it is 4096 bytes, so if you have ini files that are bigger
-than this, you can increase this value during compilation by running
+Compilation can be tuned to save program an stack memory - this is usefull
+for small embedded system where couple of hundred of bytes is a lot.
 
-~~~
-make LINE_MAX=65535
-~~~
+SINI_VERSION (default: 9999)
+----------------------------
 
-But if your lines are longer than 4096, than you really shouldn't be using
-ini files, but something more apropriate.
+No a memory saving field, but it's still there. This string will be printed
+when '-v' is specified. This is set to proper value when building with
+**make**.
 
-For embedded, it would be wise to lower this to even 128, as this determines
-how much stack memory will be taken during execution.
+PRINT_HELP (default: 1)
+-----------------------
+
+If set to 0, none of help strings will be compiled in, -h won't print help,
+and will just exit(0). This saves around 1kB of program memory.
+
+PRINT_LONG_HELP (default: 1)
+----------------------------
+
+If long help is not needed (with description and examples) one can disable
+it by setting this to 0. In that case PRINT_HELP will add around 150bytes
+of program memory, and -h will print very brief usage info. Enabling this
+adds 800bytes of program memory.
+
+LINE_MAX (default: 4096)
+------------------------
+
+[sini][1](1) does not use any dynamic allocations, so there is max line
+limit imposed. By default it is 4096 bytes, so if you have ini files that
+are bigger than this, you can increase this value during compilation,
+but it is more probable you will decrease it on embedded system.
+This value directly affect how much stack memory will be used as
+program will allocate LINE_MAX bytes on stack each time it is called.
 
 Comments ignore LINE_MAX limit, so you can have nice and short key=value
 entries and still take advantage of full 78character wide comments. So
