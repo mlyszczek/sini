@@ -47,6 +47,13 @@
 #	define SINI_VERSION "9999"
 #endif
 
+#ifndef PRINT_HELP
+#	define PRINT_HELP 1
+#endif
+
+#ifndef PRINT_LONG_HELP
+#	define PRINT_LONG_HELP 1
+#endif
 
 
 #define ACTION_GET 0
@@ -80,12 +87,15 @@ static int    g_curr_line;/* current line number in ini */
 
 static void print_usage(void)
 {
+#if PRINT_HELP
 	printf(
 "sini - shell ini file manipulator\n"
 "\n"
 "Usage: sini [ -h | -v ]\n"
 "            [get] [<file>] [<section>] <key>\n"
-"            set [<file>] [<section>] <key> <value>\n"
+"            set [<file>] [<section>] <key> <value>\n");
+#if PRINT_LONG_HELP
+	printf(
 "\n"
 "  get       get <object> from <file>, used by defaul if not specified\n"
 "  set       set <value> in <object> in <file> in non-destructive way\n"
@@ -107,6 +117,8 @@ static void print_usage(void)
 "  sini set config.ini \"section space\" \"and key\" \"value with spaces\"\n"
 "  SINI_FILE=config.ini sini set ip 10.1.1.1\n"
 );
+#endif  /* PRINT_LONG_HELP */
+#endif  /* PRINT_HELP */
 }
 
 /* ==========================================================================

@@ -8,8 +8,11 @@ WARN_FLAGS = -Wall -Wextra -Wpedantic
 PVS ?= pvs-studio-analyzer
 PLOG ?= plog-converter
 MKDIR ?= mkdir -p
+PRINT_HELP ?= 0
+PRINT_LONG_HELP ?= 1
 
-FLAGS = -DSINI_VERSION=\"$(VERSION)\" -DLINE_MAX=$(LINE_MAX)
+FLAGS = -DSINI_VERSION=\"$(VERSION)\" -DLINE_MAX=$(LINE_MAX) \
+		-DPRINT_LONG_HELP=$(PRINT_LONG_HELP) -DPRINT_HELP=$(PRINT_HELP)
 
 sini: main.c
 	$(CC) -o $@ $^ $(FLAGS) $(CFLAGS) $(COV_FLAGS) $(WARN_FLAGS)
