@@ -127,7 +127,8 @@ static void print_usage(void)
 /* ==========================================================================
     Generates random alphanumeric data into 's'. 'l' number of bytes will
     be generated, including last '\0' terminator. So when l is 7, 6 random
-    bytes will be stored into 's' and one '\0' at the end.
+    bytes will be stored into 's' and one '\0' at the end. String will
+    contain [a-z] characters
    ========================================================================== */
 
 
@@ -137,13 +138,12 @@ void random_string
 	size_t             l   /* length of the data to generate (with '\0') */
 )
 {
-	static const char  alphanum[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-	size_t             i;
+	size_t             i;  /* index */
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 
 	for (i = 0; i != l; ++i)
-		s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+		s[i] = rand() % 26 + 'a';
 
 	s[i - 1] = '\0';
 }
