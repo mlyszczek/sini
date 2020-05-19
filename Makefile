@@ -80,7 +80,7 @@ www:
 	kursg -iwww -owww/out
 	cd www && ./post-process.sh
 
-main.plist:
+main.plist: main.c
 	clang --analyze main.c -o $@
 
 clang-analyze: main.plist
