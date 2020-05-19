@@ -238,9 +238,14 @@ static int get_line
 	char  **l
 )
 {
+	int     overflow;  /* flag to indicate too long line */
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+
 	*l = line;
 	line[linelen - 1] = 0x7f;
 	g_curr_line++;
+	overflow = 0;
 
 	if (fgets(line, LINE_MAX, f) == NULL)
 	{
@@ -249,13 +254,25 @@ static int get_line
 		retp("error reading ini file");
 	}
 
+	/* if line is too long, do not quit right away, first let's check
+	 * if line is a comment, and if it indeed is we really do not care
+	 * if line is too long or not. We can safely ignore such lines
+	 */
 	if (line[linelen - 1] == '\0' && line[linelen - 2] != '\n')
-		retpos("line longer than " NSTR(LINE_MAX) ". Sorry.");
+	{
+		int c;
+		overflow = 1;
+		/* discard whole line not much we can do with it anyway */
+		while ((c = getc(f)) != '\n' && c != EOF);
+	}
 
 	while (isspace(**l)) ++*l;
 	/* skip comments and blank lines */
 	if (**l == ';' || **l == '\0')
 		return 1;
+
+	if (overflow)
+		retpos("line longer than " NSTR(LINE_MAX) ". Sorry.");
 
 	return 0;
 }

@@ -426,6 +426,27 @@ comment_line_too_big()
 	echo "; ${comment}" > ${workfile}
 	echo "name = value" >> ${workfile}
 
+	# too long comment should be ignored, and proper value should be
+	# returned
+	fo_sini ${workfile} "" name >${out} 2>${err}
+	mt_fail "[ ${?} -eq 0 ]"
+	stdout="$(cat ${out})"
+	mt_fail "[ \"${stdout}\" = \"value\" ]"
+	error=$(cat ${err})
+	mt_fail "[ -z \"${error}\" ]"
+}
+
+
+## ==========================================================================
+## ==========================================================================
+
+
+line_too_big()
+{
+	max_line=$(strings ${sini} | grep "line longer than" | grep -Eo "[0-9]+")
+	val=$(randstr $((max_line + 100)))
+	echo "name = ${val}" >> ${workfile}
+
 	fo_sini ${workfile} "" anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
@@ -794,6 +815,7 @@ mt_run print_version
 mt_run line_too_big
 mt_run section_line_too_big
 mt_run comment_line_too_big
+mt_run line_too_big
 mt_run no_such_file
 mt_run read_access
 mt_run write_access

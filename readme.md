@@ -100,6 +100,21 @@ ini files, but something more apropriate.
 For embedded, it would be wise to lower this to even 128, as this determines
 how much stack memory will be taken during execution.
 
+Comments ignore LINE_MAX limit, so you can have nice and short key=value
+entries and still take advantage of full 78character wide comments. So
+if LINE_MAX is 16, following ini file is fully compatible:
+
+~~~
+; a very long comment that exceeds configured 16 bytes
+; line limit size, sini really couldn't care less about
+; comments
+[section]
+key = value
+; many letters, such wow, much longevity, so ignoring
+; stack so precious, savest
+next key = 5
+~~~
+
 ini specification
 =================
 
