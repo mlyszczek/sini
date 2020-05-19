@@ -394,10 +394,12 @@ static int gen_tmp_file
 /* ==========================================================================
     Copies all contents from source `fsrc' file to desctination `fdst'.
     To save some stack memory, reuse memory from upper calls by accepting
-    `line' pointer. Stream pointers is not modified in both `fsrc' and
-    `fdst', so they can point to arbitrary positions before call.
+    `line' pointer. Stream pointers are not modified in both `fsrc' and
+    `fdst' before calling, and function will start reading from position
+    that is currently in `fsrc' to position that is currently in `fdst'.
+    Stream pointers will be modified after function is finished.
 
-    returns 0 when
+    returns 0 on success otherwise -1 is returned.
    ========================================================================== */
 
 
