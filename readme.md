@@ -138,6 +138,14 @@ key = value
 next key = 5
 ~~~
 
+SINI_STANDALONE (default: 1)
+----------------------------
+
+Flag for embedded systems that do not support binary loading. When
+this is set to 1, standard main() function will be defined, but if
+you set this to 0, sini_main() will be used instead allowing you
+to call program as an ordinary function.
+
 ini specification
 =================
 

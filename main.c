@@ -55,6 +55,9 @@
 #	define PRINT_LONG_HELP 1
 #endif
 
+#ifndef SINI_STANDALONE
+#	define SINI_STANDALONE 1
+#endif
 
 #define ACTION_GET 0
 #define ACTION_SET 1
@@ -583,7 +586,11 @@ end:
    ========================================================================== */
 
 
+#if SINI_STANDALONE
 int main
+#else
+int sini_main
+#endif
 (
 	int    argc,            /* number of arguments in argv */
 	char  *argv[]           /* program arguments from command line */
