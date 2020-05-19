@@ -33,6 +33,8 @@
 #define ret(S) do {    fprintf(stderr, S "\n"); return -1; } while (0)
 #define diep(S) do {   perror(S); exit(1); } while (0)
 #define retp(S) do {   perror(S); return -1; } while (0)
+#define retpos(S) do { fprintf(stderr, "line %d: " S "\n", g_curr_line); \
+		return -1; } while (0)
 
 #define STRINGIFY(X) #X
 #define NSTR(N) STRINGIFY(N)
@@ -57,6 +59,8 @@ static char  *g_file;     /* ini file to operate on */
 static char  *g_section;  /* ini section to operate on */
 static char  *g_key;      /* ini key to operate on */
 static char  *g_value;    /* value to store to ini */
+
+static int    g_curr_line;/* current line number in ini */
 
 
 /* ==========================================================================
@@ -154,7 +158,7 @@ static int is_section
 		return 0;
 
 	if ((closing = strchr(line, ']')) == NULL)
-		ret("unterminated section found, aborting");
+		retpos("unterminated section found, aborting");
 
 	*closing = '\0';
 	ret = strcmp(line, g_section) == 0;
@@ -170,7 +174,7 @@ static int is_section
     return
        -2    found '[' which starts new section
        -1    error parsing ini file
-        0    line does not contain requested line
+        0    line does not contain requested key
         1    yes, that line is the line with requested name
    ========================================================================== */
 
@@ -192,10 +196,10 @@ static int is_key
 		return -2;
 
 	if (*line == '=')
-		ret("empty key detected, aborting");
+		retpos("empty key detected, aborting");
 
 	if ((delim = strchr(line, '=')) == NULL)
-		ret("missing '=' in key=value, aborting");
+		retpos("missing '=' in key=value, aborting");
 
 	if (value)
 	{
@@ -236,6 +240,7 @@ static int get_line
 {
 	*l = line;
 	line[linelen - 1] = 0x7f;
+	g_curr_line++;
 
 	if (fgets(line, LINE_MAX, f) == NULL)
 	{
@@ -245,7 +250,7 @@ static int get_line
 	}
 
 	if (line[linelen - 1] == '\0' && line[linelen - 2] != '\n')
-		ret("line longer than " NSTR(LINE_MAX) ". Sorry.");
+		retpos("line longer than " NSTR(LINE_MAX) ". Sorry.");
 
 	while (isspace(**l)) ++*l;
 	/* skip comments and blank lines */

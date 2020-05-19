@@ -135,10 +135,10 @@ arg_error()
 object_not_found()
 {
 	fo_sini ${test_ini} nonexisting object >${out} 2>${err}
-	mt_fail "[ ${?} -eq 2 ]"
+	mt_fail "[ ${?} -eq 1 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
-	mt_fail "[ $(stat --format=%s ${err}) -eq 0 ]"
+	mt_fail "[ \"$(cat ${err})\" = \"section not found\" ]"
 }
 
 
@@ -149,10 +149,10 @@ object_not_found()
 object_not_found_in_matchin_section()
 {
 	fo_sini ${test_ini} section does-not-exist >${out} 2>${err}
-	mt_fail "[ ${?} -eq 2 ]"
+	mt_fail "[ ${?} -eq 1 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
-	mt_fail "[ $(stat --format=%s ${err}) -eq 0 ]"
+	mt_fail "[ \"$(cat ${err})\" = \"key not found\" ]"
 }
 
 
@@ -163,10 +163,10 @@ object_not_found_in_matchin_section()
 object_not_found_in_last_matchin_section()
 {
 	fo_sini ${test_ini} section-ind-space does-not-exist >${out} 2>${err}
-	mt_fail "[ ${?} -eq 2 ]"
+	mt_fail "[ ${?} -eq 1 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
-	mt_fail "[ $(stat --format=%s ${err}) -eq 0 ]"
+	mt_fail "[ \"$(cat ${err})\" = \"key not found\" ]"
 }
 
 
@@ -391,7 +391,7 @@ line_too_big()
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
 	error=$(cat ${err})
-	mt_fail "[ \"${error}\" = \"line longer than ${max_line}. Sorry.\" ]"
+	mt_fail "[ \"${error}\" = \"line 1: line longer than ${max_line}. Sorry.\" ]"
 }
 
 
@@ -411,7 +411,7 @@ section_line_too_big()
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
 	error=$(cat ${err})
-	mt_fail "[ \"${error}\" = \"line longer than ${max_line}. Sorry.\" ]"
+	mt_fail "[ \"${error}\" = \"line 1: line longer than ${max_line}. Sorry.\" ]"
 }
 
 
@@ -431,7 +431,7 @@ comment_line_too_big()
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
 	error=$(cat ${err})
-	mt_fail "[ \"${error}\" = \"line longer than ${max_line}. Sorry.\" ]"
+	mt_fail "[ \"${error}\" = \"line 1: line longer than ${max_line}. Sorry.\" ]"
 }
 
 
@@ -736,37 +736,37 @@ while true; do
 done
 
 invalids="
-name:missing '\''='\'' in key=value, aborting
-= value:empty key detected, aborting
-   = value:empty key detected, aborting
- = :empty key detected, aborting"
+name:line 1: missing '\''='\'' in key=value, aborting
+= value:line 1: empty key detected, aborting
+   = value:line 1: empty key detected, aborting
+ = :line 1: empty key detected, aborting"
 
 invalids_section="
-name = value\n[a]\nname:missing '\''='\'' in key=value, aborting
-name = value\n[a]\n= value:empty key detected, aborting
-name = value\n[a]\n   = value:empty key detected, aborting
-name = value\n[a]\n = :empty key detected, aborting
-name = value\n[a\nname = value:unterminated section found, aborting
+name = value\n\n[a]\nname:line 4: missing '\''='\'' in key=value, aborting
+name = value\n[a]\n= value:line 3: empty key detected, aborting
+name = value\n[a]\n   = value:line 3: empty key detected, aborting
+name = value\n[a]\n = :line 3: empty key detected, aborting
+name = value\n[a\nname = value:line 2: unterminated section found, aborting
 "
 
 i=0
 for inval in ${invalids}; do
 	i=$(( i + 1 ))
 	file=$(echo "${inval}" | cut -f1 -d:)
-	error=$(echo "${inval}" | cut -f2 -d:)
+	error=$(echo "${inval}" | cut -f2- -d:)
 	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" "''" a "'${error}'"
 	# redo error, as it is somehow modified by eval (?)
-	error=$(echo "${inval}" | cut -f2 -d:)
+	error=$(echo "${inval}" | cut -f2- -d:)
 	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" "''" a "'${error}'"
 done
 
 for inval in ${invalids_section}; do
 	i=$(( i + 1 ))
 	file=$(echo "${inval}" | cut -f1 -d:)
-	error=$(echo "${inval}" | cut -f2 -d:)
+	error=$(echo "${inval}" | cut -f2- -d:)
 	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" a a "'${error}'"
 	# redo error, as it is somehow modified by eval (?)
-	error=$(echo "${inval}" | cut -f2 -d:)
+	error=$(echo "${inval}" | cut -f2- -d:)
 	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" a a "'${error}'"
 done
 
