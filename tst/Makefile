@@ -16,7 +16,7 @@ libfo.so: fo.o
 	$(CC) -shared -fPIC -Wl,-soname,$@.1 -Wl,-init,fo_init -o $@ fo.o -lc -ldl
 
 sini: ../main.c libfo.so
-	$(CC) -g3 -ggdb -O0 -o $@ $< $(CFLAGS) $(COV_FLAGS) $(WARN_FLAGS) -L. -lfo
+	$(CC) -o $@ $< $(CFLAGS) $(COV_FLAGS) $(WARN_FLAGS) -L. -lfo
 
 check: sini libfo.so
 	./test.sh
