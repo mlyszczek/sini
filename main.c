@@ -247,7 +247,7 @@ static int get_line
 	g_curr_line++;
 	overflow = 0;
 
-	if (fgets(line, LINE_MAX, f) == NULL)
+	if (fgets(line, linelen, f) == NULL)
 	{
 		if (feof(f))
 			return -2;
