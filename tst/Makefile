@@ -1,4 +1,4 @@
-OVERAGE ?= n
+COVERAGE ?= n
 LCOV ?= lcov
 GENHTML ?= genhtml
 
