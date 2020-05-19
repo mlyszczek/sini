@@ -286,8 +286,8 @@ static int do_get
 	{
 		switch (get_line(f, line, sizeof(line), &l))
 		{
-		case -2: return -2;  /* eof */
-		case -1: return -1;  /* error */
+		case -2: ret("section not found"); /* eof */
+		case -1: return -1;  /* fgets() error */
 		case  0: break;      /* valid ini line */
 		case  1: continue;   /* empty line or comment */
 		}
@@ -306,7 +306,7 @@ got_section:
 	{
 		switch (get_line(f, line, sizeof(line), &l))
 		{
-		case -2: return -2;  /* eof */
+		case -2: ret("key not found"); /* eof */
 		case -1: return -1;  /* error */
 		case  0: break;      /* valid ini line */
 		case  1: continue;   /* empty line or comment */
@@ -314,7 +314,7 @@ got_section:
 
 		switch (is_key(l, &value))
 		{
-		case -2: return -2;  /* another section found, name not found */
+		case -2: ret("key not found"); /* another section found */
 		case -1: return -1;  /* parse error */
 		case  0: continue;   /* not our name */
 		case  1: break;      /* that is our name, print value */
