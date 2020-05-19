@@ -490,7 +490,7 @@ static int do_set
 		{
 		case -1: goto end;          /* parse error */
 		case  1: fputs(line, ftmp); /* our section found */
-				 goto got_section;
+		         goto got_section;
 		case  0: fputs(line, ftmp); /* not it, keep looking */
 		         continue;
 		}
