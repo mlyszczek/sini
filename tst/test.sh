@@ -623,6 +623,20 @@ file_locked_during_rename()
 
 
 ## ==========================================================================
+## ==========================================================================
+
+
+pass_empty_section()
+{
+	echo "name = value" > ${workfile}
+	echo "[s]\nname = value 2" >> ${workfile}
+
+	name_val=$(LD_PRELOAD=./libfo.so ${sini} get ${workfile} "" name)
+	mt_fail "[ ${name_val} = value ]"
+}
+
+
+## ==========================================================================
 #                                 __                __
 #                          _____ / /_ ____ _ _____ / /_
 #                         / ___// __// __ `// ___// __/
@@ -807,6 +821,7 @@ for arg in ${args}; do
 	mt_run_named arg_error "${tname}" "'${a}'" "'${e}'"
 done
 
+mt_run pass_empty_section
 mt_run object_not_found
 mt_run object_not_found_in_matchin_section
 mt_run object_not_found_in_last_matchin_section
