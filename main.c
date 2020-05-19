@@ -57,7 +57,7 @@
 
 static char  *g_file;     /* ini file to operate on */
 static char  *g_section;  /* ini section to operate on */
-static char  *g_name;     /* ini name to operate on */
+static char  *g_key;      /* ini key to operate on */
 static char  *g_value;    /* value to store to ini */
 
 
@@ -82,25 +82,29 @@ static void print_usage(void)
 "sini - shell ini file manipulator\n"
 "\n"
 "Usage: sini [ -h | -v ]\n"
-"            [get] [<file>] <object> \n"
-"            set [<file>] <object> <value>\n"
+"            [get] [<file>] [<section>] <key>\n"
+"            set [<file>] [<section>] <key> <value>\n"
 "\n"
 "  get       get <object> from <file>, used by defaul if not specified\n"
 "  set       set <value> in <object> in <file> in non-destructive way\n"
 "  file      ini file to manipulate on, optional when SINI_FILE envvar is set\n"
-"  object    ini object in format section.name, .name for no section\n"
+"  section   section name, can be empty or ommited if there is no section\n"
+"  key       key of the option in section\n"
 "  value     value to store in <file>, put in file as-is\n"
 "\n");
 	printf(
 "examples:\n"
 "\n"
-"  sini get config.ini server.ip\n"
-"  sini config.ini \"section space.and name\"\n"
-"  sini /etc/config.ini .user\n"
-"  SINI_FILE=config.ini sini .ip\n"
+"  sini get config.ini server ip\n"
+"  sini config.ini \"section space\" \"and key\"\n"
+"  sini /etc/config.ini \"\" key-in-no-section\n"
+"  sini /etc/config.ini key-no-section\n"
+"  SINI_FILE=config.ini sini server ip\n"
 "\n"
-"  sini set config.ini server.ip 10.1.1.3\n"
-"  sini set config.ini \"section space.and name\" \"value with spaces\"\n");
+"  sini set config.ini server ip 10.1.1.3\n"
+"  sini set config.ini \"section space\" \"and key\" \"value with spaces\"\n"
+"  SINI_FILE=config.ini sini set ip 10.1.1.1\n"
+);
 }
 
 /* ==========================================================================
@@ -125,62 +129,6 @@ void random_string
 		s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
 
 	s[i - 1] = '\0';
-}
-
-
-/* ==========================================================================
-    Splits ini `object' in format `section.name' into two separate valid
-    c-strings. `object' should point to modifyable memory, as separator `.'
-    character will be changed to '\0'. After success, `g_section' will be
-    pointing to begninning of `object' (but dot will be '\0' then), and
-    `g_name' will be poiting at first character after dot separator. If
-    section is not specified in `object', `g_section' will be NULL.
-   ========================================================================== */
-
-
-static int split_object
-(
-	char   *object  /* ini object in format `section.name' */
-)
-{
-	char    c;      /* temporary character */
-	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-
-
-	if (object == NULL)
-		return -1;
-
-	if (object[0] == '.')
-	{
-		/* object without section (global) */
-		g_name = object + 1;
-		goto end;
-	}
-
-	g_section = object;
-	while ((c = *object++))
-	{
-		if (c == '.')
-		{
-			g_name = object;
-			/* replace '.' in object with null, so that section
-			 * points to valid c-string
-			 */
-			object[-1] = '\0';
-			goto end;
-		}
-	}
-
-end:
-	/* first character of name should be printable character and
-	 * not a space, so object arguments "section." and "section. "
-	 * will be invalid. If *name is null, this means there was
-	 * no dot separator in object.
-	 */
-	if (g_name == NULL || !isprint(*g_name) || isspace(*g_name))
-		return -1;
-
-	return 0;
 }
 
 
@@ -218,7 +166,7 @@ static int is_section
 
 
 /* ==========================================================================
-    Checks if `line' contains requested `g_name' ini field. If value is
+    Checks if `line' contains requested `g_key' ini field. If value is
     different than NULL, pointer to field value will be stored there.
 
     return
@@ -229,7 +177,7 @@ static int is_section
    ========================================================================== */
 
 
-static int is_name
+static int is_key
 (
 	char   *line,  /* line to check for name */
 	char  **value  /* pointer to name value will be stored here */
@@ -260,7 +208,7 @@ static int is_name
 	while (isspace(delim[-1])) --delim;
 	whites = *delim;
 	*delim = '\0';
-	ret = strcmp(line, g_name) == 0;
+	ret = strcmp(line, g_key) == 0;
 	*delim = whites;
 	return ret;
 }
@@ -311,7 +259,7 @@ static int get_line
 
 
 /* ==========================================================================
-    Reads `g_section'.`g_name' field from `f' file, and prints its value on
+    Reads `g_section'.`g_key' field from `f' file, and prints its value on
     standard output.
    ========================================================================== */
 
@@ -364,7 +312,7 @@ got_section:
 		case  1: continue;   /* empty line or comment */
 		}
 
-		switch (is_name(l, &value))
+		switch (is_key(l, &value))
 		{
 		case -2: return -2;  /* another section found, name not found */
 		case -1: return -1;  /* parse error */
@@ -529,7 +477,7 @@ static int do_set
 		case -2:                    /* eof */
 			ret = 0;
 			fprintf(ftmp, "[%s]\n%s = %s\n",
-					g_section, g_name, g_value);
+					g_section, g_key, g_value);
 		case -1: goto end;          /* error */
 		case  0: break;             /* valid ini line */
 		case  1: fputs(line, ftmp); /* empty line or comment */
@@ -553,18 +501,18 @@ got_section:
 		{
 		case -2:                    /* eof */
 			ret = 0;
-			fprintf(ftmp, "%s = %s\n", g_name, g_value);
+			fprintf(ftmp, "%s = %s\n", g_key, g_value);
 		case -1: goto end;          /* error */
 		case  0: break;             /* valid ini line */
 		case  1: fputs(line, ftmp); /* empty line or comment */
 		         continue;
 		}
 
-		switch (is_name(l, &value))
+		switch (is_key(l, &value))
 		{
 		case -2:
 			/* another section found, name not found, create it */
-			fprintf(ftmp, "%s = %s\n", g_name, g_value);
+			fprintf(ftmp, "%s = %s\n", g_key, g_value);
 			fputs(line, ftmp);
 			ret = copy_file(f, ftmp, line, sizeof(line));
 			goto end;
@@ -573,7 +521,7 @@ got_section:
 			/* that is our name, print our line, but do not print
 			 * old line (value), it's a replacement after all
 			 */
-			fprintf(ftmp, "%s = %s\n", g_name, g_value);
+			fprintf(ftmp, "%s = %s\n", g_key, g_value);
 			ret = copy_file(f, ftmp, line, sizeof(line));
 			goto end;
 
@@ -603,14 +551,16 @@ end:
 
 int main
 (
-	int    argc,    /* number of arguments in argv */
-	char  *argv[]   /* program arguments from command line */
+	int    argc,            /* number of arguments in argv */
+	char  *argv[]           /* program arguments from command line */
 )
 {
-	int    action;  /* set or get from ini? */
-	int    optind;  /* current option index to parse */
-	int    ret;     /* return code from program */
-	FILE  *f;       /* ini file to operate on */
+	int    action;          /* set or get from ini? */
+	int    optind;          /* current option index to parse */
+	int    ret;             /* return code from program */
+	int    argsleft;        /* number of arguments left to process */
+	int    section_passed;  /* flag, 1 if section is passed in arguments */
+	FILE  *f;               /* ini file to operate on */
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 
@@ -649,8 +599,15 @@ int main
 		if ((g_file = argv[optind++]) == NULL)
 			die("file not specified, check `sini -h'");
 
-	if (split_object(argv[optind++]) == -1)
-		die("invalid object name, check `sini -h'");
+	argsleft = argc - optind;
+	section_passed = action == ACTION_GET && argsleft == 2;
+	section_passed = action == ACTION_SET && argsleft == 3 ? 1 : section_passed;
+	if (section_passed)
+		if ((g_section = argv[optind++]) == NULL || g_section[0] == '\0')
+			g_section = NULL;
+
+	if ((g_key = argv[optind++]) == NULL)
+		die("missing key name, check `sini -h'");
 
 	if (action == ACTION_SET)
 		if ((g_value = argv[optind++]) == NULL)

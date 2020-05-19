@@ -80,23 +80,24 @@ fo_sini()
 
 get_good()
 {
-	object="${1}"
-	value="${2}"
-	mode="${3}"
+	section="${1}"
+	key="${2}"
+	value="${3}"
+	mode="${4}"
 
 	case ${mode} in
 		normal)
-			pout="$(fo_sini get ${test_ini} "${object}")"
+			pout="$(fo_sini get ${test_ini} "${section}" "${key}")"
 			;;
 		envvar)
-			pout="$(SINI_FILE=${test_ini} fo_sini get "${object}")"
+			pout="$(SINI_FILE=${test_ini} fo_sini get "${section}" "${key}")"
 			;;
 		pipein)
-			pout="$(cat ${test_ini} | fo_sini get - "${object}")"
+			pout="$(cat ${test_ini} | fo_sini get - "${section}" "${key}")"
 			;;
 	esac
-	mt_fail "[ ${?} -eq 0 ]"
-	mt_fail "[ \"x${pout}\" = \"x${value}\" ]"
+	mt_faile [ ${?} -eq 0 ]
+	mt_faile [ "x${pout}" = "x${value}" ]
 }
 
 
@@ -120,6 +121,7 @@ arg_error()
 	mt_fail "[ $(tail -c1 ${err} | wc -l) -eq 1 ]"
 	if [ "${stderr}" != "${msg}" ]; then
 		mt_fail "test -z 'stderr != msg'"
+		echo cmd: sini "${args}"
 		echo err: "${stderr}"
 		echo exp: "${msg}"
 	fi
@@ -132,7 +134,7 @@ arg_error()
 
 object_not_found()
 {
-	fo_sini ${test_ini} nonexisting.object >${out} 2>${err}
+	fo_sini ${test_ini} nonexisting object >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
@@ -146,7 +148,7 @@ object_not_found()
 
 object_not_found_in_matchin_section()
 {
-	fo_sini ${test_ini} section.does-not-exist >${out} 2>${err}
+	fo_sini ${test_ini} section does-not-exist >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
@@ -160,7 +162,7 @@ object_not_found_in_matchin_section()
 
 object_not_found_in_last_matchin_section()
 {
-	fo_sini ${test_ini} section-ind-space.does-not-exist >${out} 2>${err}
+	fo_sini ${test_ini} section-ind-space does-not-exist >${out} 2>${err}
 	mt_fail "[ ${?} -eq 2 ]"
 
 	mt_fail "[ $(stat --format=%s ${out}) -eq 0 ]"
@@ -187,7 +189,7 @@ get_with_max_path()
 	path+="/cfg.ini"
 	echo "name=value" > ${path}
 
-	fo_sini set ${path} .name value1
+	fo_sini set ${path} "" name value1
 	mt_fail "[ ${?} -eq 0 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name = value1\" ]"
 
@@ -206,7 +208,7 @@ get_with_max_name()
 	path="/tmp/$(randstr 247)"
 	echo "name=value" > ${path}
 
-	fo_sini set ${path} .name value1
+	fo_sini set ${path} "" name value1
 	mt_fail "[ ${?} -eq 0 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name = value1\" ]"
 
@@ -232,7 +234,7 @@ get_with_too_big_path()
 	path+="/cfg.ini"
 	echo "name=value" > ${path}
 
-	fo_sini set ${path} .name value1 >${out} 2>${err}
+	fo_sini set ${path} "" name value1 >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name=value\" ]"
 	mt_fail "[ \"$(cat ${err})\" = \"can't create temp file, path to <file> too large\" ]"
@@ -253,7 +255,7 @@ get_with_too_big_name()
 	path="/tmp/$(randstr 248)"
 	echo "name=value" > ${path}
 
-	fo_sini set ${path} .name value1 >${out} 2>${err}
+	fo_sini set ${path} "" name value1 >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	mt_fail "[ \"$(cat ${path})\" = \"name=value\" ]"
 	mt_fail "[ \"$(cat ${err})\" = \"can't create temp file, <file> name too large\" ]"
@@ -269,10 +271,16 @@ do_invalid()
 {
 	action=${1}
 	printf "${2}\n" > ${workfile}
-	object=${3}
-	error=${4}
+	section=${3}
+	key=${4}
+	error=${5}
 
-	fo_sini ${action} ${workfile} ${object} value >${out} 2>${err}
+	value=
+	if [ "${action}" = set ]; then
+		value=whatever
+	fi
+
+	fo_sini ${action} ${workfile} ${section} ${key} ${value} >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 
 	stdout="$(cat ${out})"
@@ -296,9 +304,10 @@ set_good()
 {
 	begin=${1}
 	expect=${2}
-	object=${3}
-	value=${4}
-	mode=${5}
+	section=${3}
+	key=${4}
+	value=${5}
+	mode=${6}
 
 	expectfile=$(mktemp)
 
@@ -310,18 +319,19 @@ set_good()
 
 	case ${mode} in
 		normal)
-			fo_sini set ${workfile} "${object}" "${value}"
+			fo_sini set ${workfile} "${section}" "${key}" "${value}"
 			ret=${?}
 			;;
 
 		envvar)
-			SINI_FILE=${workfile} fo_sini set "${object}" "${value}"
+			SINI_FILE=${workfile} fo_sini set "${section}" "${key}" "${value}"
 			ret=${?}
 			;;
 
 		pipein)
 			tmpfile=$(mktemp)
-			cat "${workfile}" | fo_sini set - "${object}" "${value}" >${tmpfile}
+			cat "${workfile}" | fo_sini set - "${section}" "${key}" "${value}" \
+					>${tmpfile}
 			ret=${?}
 			mv ${tmpfile} ${workfile}
 			;;
@@ -376,7 +386,7 @@ line_too_big()
 	value=$(randstr $((max_line / 2 + 100)))
 	echo $name = $value > ${workfile}
 
-	fo_sini ${workfile} .anything >${out} 2>${err}
+	fo_sini ${workfile} "" anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -396,7 +406,7 @@ section_line_too_big()
 	echo "[${section}]" > ${workfile}
 	echo "name = value" >> ${workfile}
 
-	fo_sini ${workfile} sec.anything >${out} 2>${err}
+	fo_sini ${workfile} sec anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -416,7 +426,7 @@ comment_line_too_big()
 	echo "; ${comment}" > ${workfile}
 	echo "name = value" >> ${workfile}
 
-	fo_sini ${workfile} .anything >${out} 2>${err}
+	fo_sini ${workfile} "" anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -431,7 +441,7 @@ comment_line_too_big()
 
 no_such_file()
 {
-	fo_sini non-existing-file .anything >${out} 2>${err}
+	fo_sini non-existing-file "" anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -448,7 +458,7 @@ read_access()
 	echo "name = value" > ${workfile}
 	chmod 200 ${workfile}
 
-	fo_sini ${workfile} .anything >${out} 2>${err}
+	fo_sini ${workfile} "" anything >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -466,7 +476,7 @@ write_access()
 	echo "name = value" > ${workfile}
 	chmod 400 ${workfile}
 
-	fo_sini set ${workfile} .anything whatever >${out} 2>${err}
+	fo_sini set ${workfile} "" anything whatever >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -487,7 +497,7 @@ dir_write_access()
 	echo "name = value" > ${workfil}
 	chmod 500 ${workdir}
 
-	fo_sini set ${workfil} .anything whatever >${out} 2>${err}
+	fo_sini set ${workfil} "" anything whatever >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -508,7 +518,7 @@ eio_during_read()
 	echo "fgets, 1, NULL, EIO" > ${fo_init}
 	echo "name = value" > ${workfile}
 
-	LIBFO_INIT_FILE=${fo_init} fo_sini get ${workfile} .anything  >${out} 2>${err}
+	LIBFO_INIT_FILE=${fo_init} fo_sini get ${workfile} "" anything  >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -532,7 +542,7 @@ eio_during_copy_file()
 	echo "name2 = value2" >> ${workfile}
 	cp ${workfile} ${tmp}
 
-	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} .name val >${out} 2>${err}
+	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} "" name val >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -557,7 +567,7 @@ enospc_during_copy_file()
 	echo "name2 = value2" >> ${workfile}
 	cp ${workfile} ${tmp}
 
-	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} .name val >${out} 2>${err}
+	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} "" name val >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -579,7 +589,7 @@ file_locked_during_rename()
 	echo "rename, 1, -1, EBUSY" > ${fo_init}
 	echo "name = value" > ${workfile}
 
-	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} .name val >${out} 2>${err}
+	LIBFO_INIT_FILE=${fo_init} fo_sini set ${workfile} "" name val >${out} 2>${err}
 	mt_fail "[ ${?} -eq 1 ]"
 	stdout="$(cat ${out})"
 	mt_fail "[ -z \"${stdout}\" ]"
@@ -620,16 +630,15 @@ for s in $sections; do
 		val=$(echo "${t}" | cut -f2 -d=)
 
 		for i in $(seq 0 5); do
-			object=${s}.${name}${i}
 			value=${val}${i}
 			if [ "${name}" = "empty-val" ]; then
 				value=${val}
 			fi
-			tname="${object} -> ${value}"
+			tname="${s} ${name}${i} -> ${value}"
 
 			for m in normal envvar pipein; do
-				mt_run_named get_good "get (${m}) ${tname}" "'${object}'" \
-					"'${value}'" ${m}
+				mt_run_named get_good "get (${m}) ${tname}" "'${s}'" \
+						"'${name}${i}'" "'${value}'" ${m}
 			done
 		done
 	done
@@ -638,6 +647,10 @@ done
 set_in="''
 .name:value
 name = value
+
+''
+.space name:value
+space name = value
 
 name0 = value0
 .name1:value1
@@ -705,6 +718,8 @@ while true; do
 
 	eval tmp=\${${i}}
 	object=$(echo "${tmp}" | cut -f1 -d:)
+	section=$(echo "${object}" | cut -f1 -d.)
+	key=$(echo "${object}" | cut -f2 -d.)
 	value=$(echo "${tmp}" | cut -f2 -d:)
 	i=$((i + 1))
 
@@ -715,7 +730,8 @@ while true; do
 	for m in normal envvar pipein
 	do
 		mt_run_named set_good "set (${m}) $(( (i - 1) / 3))" \
-			"'${begin}'" "'${expect}'" "'${object}'" "'${value}'" ${m}
+			"'${begin}'" "'${expect}'" "'${section}'" "'${key}'" \
+			"'${value}'" ${m}
 	done
 done
 
@@ -738,35 +754,30 @@ for inval in ${invalids}; do
 	i=$(( i + 1 ))
 	file=$(echo "${inval}" | cut -f1 -d:)
 	error=$(echo "${inval}" | cut -f2 -d:)
-	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" .a "'${error}'"
+	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" "''" a "'${error}'"
 	# redo error, as it is somehow modified by eval (?)
 	error=$(echo "${inval}" | cut -f2 -d:)
-	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" .a "'${error}'"
+	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" "''" a "'${error}'"
 done
 
 for inval in ${invalids_section}; do
 	i=$(( i + 1 ))
 	file=$(echo "${inval}" | cut -f1 -d:)
 	error=$(echo "${inval}" | cut -f2 -d:)
-	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" a.a "'${error}'"
+	mt_run_named do_invalid "get_invalid (${i})" "get" "'${file}'" a a "'${error}'"
 	# redo error, as it is somehow modified by eval (?)
 	error=$(echo "${inval}" | cut -f2 -d:)
-	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" a.a "'${error}'"
+	mt_run_named do_invalid "set_invalid (${i})" "set" "'${file}'" a a "'${error}'"
 done
 
 
 args="'':no arguments specified
 get:file not specified
-get .name:invalid object name
-get file name:invalid object name
-get file section.:invalid object name
-get file .:invalid object name
+get key:missing key name
 set:file not specified
-set file:invalid object name
-set file object:invalid object name
-set file .:invalid object name
-set file section.:invalid object name
-set file a.object:value not specified"
+set file:missing key name
+set file key:value not specified
+"
 
 for arg in ${args}; do
 	a="$(echo "${arg}" | cut -f1 -d:)"

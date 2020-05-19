@@ -8,10 +8,10 @@
 .BR sini\  [\  -h\  |\  -v\  ]
 .br
 .BR sini\  [ get ]
-.RI [< file >]\ < object >
+.RI [< file >]\ [< section >]\ < key >
 .br
 .BR sini\ set
-.RI [< file >]\ < object >\ < value >
+.RI [< file >]\ [< section >]\ < key >\ < value >
 .PP
 Environment variables:
 .br
@@ -25,41 +25,55 @@ Environment variables:
 Retrieves value from
 .I file
 for
-.I object.
+.I section key
+pair.
 .B get
 argument can be omited, if that is the case,
 .BR sini (1)
 behaves just like if
 .B get
 was passed.
+.I section
+can be ommited, in which case value for
+.I key
+that is not in any section will be retrieved.
 If
-.I object
-is found, its value will be printed to
-.BR stdout ,
-otherwise nothing will be printed and error will be returned.
+.I key
+is found then value is printed on stdout.
 .TP
 .B set
 Write new or update existing
-.I object
-with
+.I section key
+pair with
 .I value
 in
-.IR  file .
+.IR file .
 .B set
-works in non destructive way, so all comments and whitespaces will be
-preserved.
+works in non destructive way, so all comments and whitespaces will be preserved.
 When
-.I object
-already exists in
+.I section key
+pair already exists in
 .I file
 it will be updated.
 If
-.I object
-does not exist, it will be created at the end of existing section.
-If section does not exist it will be created at the end of file, then
-key and
+.I key
+does not exist but
+.I section
+does,
+.I key
+will be created at the end of existing
+.IR section .
+If
+.I section
+does not exist,
+.BR sini (1)
+will create
+.I section
+at the end of file, and after that
+.I key
+and
 .I value
-will be stored.
+will be added to that section.
 If
 .B set
 reads data from
@@ -86,27 +100,32 @@ is
 .B stdin
 instead.
 .TP
-.I object
-Specifies on what
-.B ini
-object do the action.
-.I object
-consists of 2 parts in format
-.IB section . key .
 .I section
-may be omited, in which case
-.I object
-will address key that has no section - that is all keys that are on top of
-file before any section is defined.
-The dot must be always specified though, so if no section is not used, use
-.BI . key .
+Ini section to work on.
+.I section
+is optional and can be ommited.
+If empty string is provided
+.BR sini (1)
+acts like if
+.I section
+was not set at all.
+Every
+.I key
+that exists before any
+.I section
+declaration is considered to be in no-section.
+.TP
+.I key
+Ini
+.I key
+to work on.
 .TP
 .I value
 Valid only for
 .B set
 command.
 This value will be assigned to specified
-.IR key.
+.IR key .
 .I value
 cannot contain new line characters, since
 .BR sini (1)
@@ -114,7 +133,8 @@ does not support multiline values.
 .SH "INI SPECIFICATION"
 .PP
 Since ini does not have any official specification, here are some
-assumptions made by sini(1).
+assumptions made by
+.BR sini (1).
 .TP
 multiline
 No multiline support, one declaration per line. Of course comments can be
@@ -124,11 +144,26 @@ sections,
 Section starts with '[' and ends with ']' on the same line, leading spaces
 are ignored, you can use any printable characters in section name,
 including spaces.
+Section is optional, all keys before any section definition are considered
+to be in "no-section" zone and can be retrieved by not passing
+.I section
+or by passing empty string.
 .TP
 key
 In "key", all leading and trailing spaces around key are ignored, but
-spaces in key are allowed, so " space key=", "space key =" and " space key
-=" are all the same, key is "space key".
+spaces in keys are allowed, so
+.br
+.B "    '  space key='"
+.br
+.B "    'space key ='"
+.br
+.B "    'space key   ='"
+.br
+are all considered to be the very same key - "space key", but
+.br
+.B "    '  space  key ='
+.br
+is different - there are 2 spaces between space and key.
 Keys without value are allowed.
 .TP
 value
