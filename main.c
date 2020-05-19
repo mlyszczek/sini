@@ -645,7 +645,7 @@ int main
 	if (strcmp(g_file, "-") == 0)
 		f = stdin;
 
-	/* since we do not write to <file> with `set' command (we use
+	/* altough we do not write to <file> with `set' command (we use
 	 * rename(3) so we need write permissions to directory not
 	 * file), we still try to open <file> with write access, as it
 	 * is not nice to write (or remove and create new in our case)
