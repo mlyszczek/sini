@@ -83,6 +83,9 @@ Compilation
 Just run **make** and to install **make install**. [sini][1](1) is a valid
 **ANSI** program, so it should work and compile anywhere, where C compiler is.
 
+It's also a single file program, so you can also manually build it just by
+calling **cc** program: **cc main.c -o sini**.
+
 Limitations
 ===========
 
